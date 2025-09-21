@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
 
-const URZ_CONTRACT_ADDRESS = '0xB1c01f7e6980AbdbAec0472C0e1A58EB46D39f3C';
+const URZ_CONTRACT_ADDRESS = "0xB1c01f7e6980AbdbAec0472C0e1A58EB46D39f3C";
 const URZ_CONTRACT_ABI = [
   "function name() view returns (string)",
   "function symbol() view returns (string)",
@@ -13,7 +13,7 @@ const URZ_CONTRACT_ABI = [
   "function allowance(address owner, address spender) view returns (uint256)",
   "function transferFrom(address from, address to, uint256 value) returns (bool)",
   "event Transfer(address indexed from, address indexed to, uint256 value)",
-  "event Approval(address indexed owner, address indexed spender, uint256 value)"
+  "event Approval(address indexed owner, address indexed spender, uint256 value)",
 ];
 const URZ_DECIMALS = 18;
 
@@ -42,8 +42,8 @@ interface DepositFormProps {
   setTenancyDurationMonths: (value: string) => void;
   tenancyEnd: string;
   setTenancyEnd: (value: string) => void;
-  paymentMode: 'fiat' | 'token';
-  setPaymentMode: (value: 'fiat' | 'token') => void;
+  paymentMode: "fiat" | "token";
+  setPaymentMode: (value: "fiat" | "token") => void;
   fiatConfirmed: boolean;
   ethereumProvider: ethers.BrowserProvider | null;
   ethereumSigner: ethers.Signer | null;
@@ -92,13 +92,13 @@ export default function DepositForm({
   connectEthereumWallet,
   connectPolkadotWallet: _connectPolkadotWallet, // ✅ Added
   darkMode,
-  polkadotAccount: _polkadotAccount // safely ignore this unused prop
+  polkadotAccount: _polkadotAccount, // safely ignore this unused prop
 }: DepositFormProps) {
   const [selectedToken, setSelectedToken] = useState("URZ");
   const [selectedFiat, setSelectedFiat] = useState("USD");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const inputStyle = `w-full border p-2 mb-2 rounded ${darkMode ? 'bg-black text-white border-white' : 'bg-white text-black border-black'}`;
+  const inputStyle = `w-full border p-2 mb-2 rounded bg-white text-black border-gray-300`;
 
   useEffect(() => {
     if (paymentMode === "token") {
@@ -119,7 +119,11 @@ export default function DepositForm({
       setIsProcessingPayment(false);
       return;
     }
-    if (!tenancyStartDate || !tenancyEnd || new Date(tenancyEnd) <= new Date(tenancyStartDate)) {
+    if (
+      !tenancyStartDate ||
+      !tenancyEnd ||
+      new Date(tenancyEnd) <= new Date(tenancyStartDate)
+    ) {
       setPaymentStatus("❌ Invalid tenancy dates.");
       setIsProcessingPayment(false);
       return;
@@ -137,7 +141,11 @@ export default function DepositForm({
 
     try {
       const amountWei = ethers.parseUnits(depositAmount, URZ_DECIMALS);
-      const urzContract = new ethers.Contract(URZ_CONTRACT_ADDRESS, URZ_CONTRACT_ABI, ethereumSigner);
+      const urzContract = new ethers.Contract(
+        URZ_CONTRACT_ADDRESS,
+        URZ_CONTRACT_ABI,
+        ethereumSigner
+      );
       const tx = await urzContract.transfer(landlordInput.trim(), amountWei);
 
       setPaymentStatus(`⏳ Transaction sent! Waiting... Tx Hash: ${tx.hash}`);
@@ -145,7 +153,9 @@ export default function DepositForm({
 
       const receipt = await tx.wait();
       if (receipt?.status === 1) {
-        setPaymentStatus(`🎉 Payment Confirmed! ${depositAmount} ${selectedToken} sent.`);
+        setPaymentStatus(
+          `🎉 Payment Confirmed! ${depositAmount} ${selectedToken} sent.`
+        );
       } else {
         setPaymentStatus("❌ Transaction failed or reverted.");
       }
@@ -159,59 +169,149 @@ export default function DepositForm({
     } finally {
       setIsProcessingPayment(false);
     }
-  }, [ethereumProvider, ethereumSigner, ethereumAccount, depositAmount, tenancyStartDate, tenancyEnd, landlordInput, selectedToken]);
+  }, [
+    ethereumProvider,
+    ethereumSigner,
+    ethereumAccount,
+    depositAmount,
+    tenancyStartDate,
+    tenancyEnd,
+    landlordInput,
+    selectedToken,
+  ]);
 
   return (
-    <div className={`p-4 border rounded shadow ${darkMode ? 'bg-black text-white border-white' : 'bg-white text-black border-black'}`}>
+    <div className={`p-4 border rounded shadow text-black rounded-xl`}>
       <h2 className="text-lg font-bold mb-4">Rent Deposit Payment</h2>
 
-      <label className="block mb-1 font-semibold">Deposit Amount</label>
-      <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className={inputStyle} />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block mb-1 font-semibold">Tenancy Start Date</label>
+          <input
+            type="date"
+            value={tenancyStartDate}
+            onChange={(e) => setTenancyStartDate(e.target.value)}
+            className={inputStyle}
+          />
+        </div>
+        <div>
+          <label className="block mb-1 font-semibold">Tenancy End Date</label>
+          <input
+            type="date"
+            value={tenancyEnd}
+            onChange={(e) => setTenancyEnd(e.target.value)}
+            className={inputStyle}
+          />
+        </div>
+      </div>
 
-      <label className="block mb-1 font-semibold">Tenancy Start Date</label>
-      <input type="date" value={tenancyStartDate} onChange={(e) => setTenancyStartDate(e.target.value)} className={inputStyle} />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block mb-1 font-semibold">Deposit Amount</label>
+          <input
+            type="number"
+            value={depositAmount}
+            onChange={(e) => setDepositAmount(e.target.value)}
+            className={inputStyle}
+          />
+        </div>
+        <div>
+          <label className="block mb-1 font-semibold">
+            Tenancy Duration (Months)
+          </label>
+          <select
+            value={tenancyDurationMonths}
+            onChange={(e) => setTenancyDurationMonths(e.target.value)}
+            className={inputStyle}
+          >
+            {Array.from({ length: 8 }, (_, i) => (i + 1) * 3).map((m) => (
+              <option key={m} value={m}>
+                {m} months
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-      <label className="block mb-1 font-semibold">Tenancy Duration (Months)</label>
-      <select value={tenancyDurationMonths} onChange={(e) => setTenancyDurationMonths(e.target.value)} className={inputStyle}>
-        {Array.from({ length: 8 }, (_, i) => (i + 1) * 3).map((m) => (
-          <option key={m} value={m}>{m} months</option>
-        ))}
-      </select>
+      <label className="block mb-1 font-semibold">
+        Landlord Wallet Address
+      </label>
+      <input
+        type="text"
+        value={landlordInput}
+        onChange={(e) => setLandlordInput(e.target.value)}
+        className={inputStyle}
+      />
 
-      <label className="block mb-1 font-semibold">Tenancy End Date</label>
-      <input type="date" value={tenancyEnd} onChange={(e) => setTenancyEnd(e.target.value)} className={inputStyle} />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block mb-1 font-semibold">Select Token</label>
+          <select
+            value={selectedToken}
+            onChange={(e) => setSelectedToken(e.target.value)}
+            className={inputStyle}
+          >
+            {POPULAR_TOKENS.map((token) => (
+              <option key={token.symbol} value={token.symbol}>
+                {token.name} ({token.symbol})
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <label className="block mb-1 font-semibold">Landlord Wallet Address</label>
-      <input type="text" value={landlordInput} onChange={(e) => setLandlordInput(e.target.value)} className={inputStyle} />
-
-      <label className="block mb-1 font-semibold">Select Token</label>
-      <select value={selectedToken} onChange={(e) => setSelectedToken(e.target.value)} className={inputStyle}>
-        {POPULAR_TOKENS.map((token) => (
-          <option key={token.symbol} value={token.symbol}>{token.name} ({token.symbol})</option>
-        ))}
-      </select>
-
-      <label className="block mb-1 font-semibold">Select Fiat</label>
-      <select value={selectedFiat} onChange={(e) => setSelectedFiat(e.target.value)} className={inputStyle}>
-        {POPULAR_FIATS.map((fiat) => (
-          <option key={fiat.symbol} value={fiat.symbol}>{fiat.name} ({fiat.symbol})</option>
-        ))}
-      </select>
+        <div>
+          <label className="block mb-1 font-semibold">Select Fiat</label>
+          <select
+            value={selectedFiat}
+            onChange={(e) => setSelectedFiat(e.target.value)}
+            className={inputStyle}
+          >
+            {POPULAR_FIATS.map((fiat) => (
+              <option key={fiat.symbol} value={fiat.symbol}>
+                {fiat.name} ({fiat.symbol})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {!ethereumAccount ? (
-        <button onClick={connectEthereumWallet} className="bg-blue-500 text-white px-4 py-2 rounded w-full mt-4">Connect Wallet</button>
+        <button
+          onClick={connectEthereumWallet}
+          className="bg-blue-500 text-white px-4 py-2 rounded w-full mt-4"
+        >
+          Connect Wallet
+        </button>
       ) : (
-        <button onClick={handlePayToken} disabled={isProcessingPayment} className="bg-green-600 text-white px-4 py-2 rounded w-full mt-4">
-          {isProcessingPayment ? "Processing..." : `Pay Token (${selectedToken})`}
+        <button
+          onClick={handlePayToken}
+          disabled={isProcessingPayment}
+          className="bg-green-600 text-white px-4 py-2 rounded w-full mt-4"
+        >
+          {isProcessingPayment
+            ? "Processing..."
+            : `Pay Token (${selectedToken})`}
         </button>
       )}
 
       {paymentStatus && (
-        <div className={`mt-4 p-3 border rounded text-sm ${darkMode ? 'border-green-400 text-green-400' : 'text-green-600 border-green-300'}`}>
+        <div
+          className={`mt-4 p-3 border rounded text-sm ${
+            darkMode
+              ? "border-green-400 text-green-400"
+              : "text-green-600 border-green-300"
+          }`}
+        >
           <p>{paymentStatus}</p>
           {paymentTxHash && (
             <p>
-              Tx: <a href={`https://moonbase.moonscan.io/tx/${paymentTxHash}`} target="_blank" rel="noopener noreferrer" className="underline">
+              Tx:{" "}
+              <a
+                href={`https://moonbase.moonscan.io/tx/${paymentTxHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
                 {paymentTxHash}
               </a>
             </p>

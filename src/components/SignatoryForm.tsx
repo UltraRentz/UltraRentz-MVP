@@ -64,16 +64,13 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
 
   return (
     <div className="form-section bg-white p-6 rounded-lg shadow-sm space-y-4 border border-gray-200">
-      <h2 className="text-2xl font-semibold text-gray-700 mb-4">
-        Step 2: Add {type} Signatories (Max 3)
-      </h2>
 
       {/* Information about 4-of-6 rule */}
       <p className="text-blue-700 text-sm p-2 bg-blue-50 rounded-md border border-blue-200">
         ℹ️ **Important:** For the rent deposit to be released at the end of the tenancy, a consensus of **4 out of 6 total signatories** (from both Renter and Landlord sides combined) will be required to approve the release.
       </p>
 
-      <div className="form-group flex flex-col sm:flex-row sm:items-end space-y-3 sm:space-y-0 sm:space-x-3">
+      <div className="form-group flex flex-col">
         <div className="flex-grow">
           <label htmlFor={`${type.toLowerCase()}Signatory`} className="block text-sm font-medium text-gray-700 mb-1">
             {type} Email Address
