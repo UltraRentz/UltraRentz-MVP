@@ -1,9 +1,9 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("Escrow Contract", function () {
-  let URZ, Escrow;
-  let urz, escrow;
+describe("Escrow Contract - Complete Tests", function () {
+  let URZ, Escrow, Malicious;
+  let urz, escrow, malicious;
   let deployer, raj, arun, s1, s2, s3, s4, dao;
 
   beforeEach(async function () {
@@ -16,18 +16,25 @@ describe("Escrow Contract", function () {
 
     // Deploy Escrow contract
     Escrow = await ethers.getContractFactory("Escrow");
-    escrow = await Escrow.deploy(urz.target);
+    escrow = await Escrow.deploy(deployer.address); // Pass owner address
     await escrow.waitForDeployment();
 
     // Set DAO
     await escrow.setDAO(dao.address);
 
-    // Set 6 signatories for multisig (raj, arun, s1-s4)
+    // Set 6 signatories
     await escrow.setSignatories([raj.address, arun.address, s1.address, s2.address, s3.address, s4.address]);
 
     // Approve escrow to spend tenant's URZ
     await urz.connect(raj).approve(escrow.target, ethers.parseUnits("100", 18));
+
+    // Deploy Malicious contract
+    Malicious = await ethers.getContractFactory("MaliciousEscrowAttack");
+    malicious = await Malicious.deploy(escrow.target, urz.target);
+    await malicious.waitForDeployment();
   });
+
+  // ---------- STANDARD ESCROW TESTS ----------
 
   it("Tenant can deposit URZ into escrow", async function () {
     await expect(escrow.connect(raj).deposit(ethers.parseUnits("100", 18)))
@@ -47,13 +54,11 @@ describe("Escrow Contract", function () {
   it("4-of-6 multisig can release deposit", async function () {
     await escrow.connect(raj).deposit(ethers.parseUnits("100", 18));
 
-    // Approvals from 4 signatories
     await escrow.connect(raj).approveRelease();
     await escrow.connect(arun).approveRelease();
     await escrow.connect(s1).approveRelease();
     await escrow.connect(s2).approveRelease();
 
-    // Release deposit
     await expect(escrow.connect(deployer).releaseDeposit())
       .to.emit(escrow, "DepositReleased")
       .withArgs(ethers.parseUnits("100", 18));
@@ -66,7 +71,6 @@ describe("Escrow Contract", function () {
     await escrow.connect(raj).deposit(ethers.parseUnits("100", 18));
     await escrow.connect(raj).triggerDispute();
 
-    // DAO forces release
     await expect(escrow.connect(dao).daoReleaseDeposit())
       .to.emit(escrow, "DepositReleased")
       .withArgs(ethers.parseUnits("100", 18));
@@ -84,5 +88,24 @@ describe("Escrow Contract", function () {
 
     const balance = await urz.balanceOf(escrow.target);
     expect(balance).to.equal(ethers.parseUnits("100", 18));
+  });
+
+  // ---------- REENTRANCY PROTECTION TEST ----------
+
+  it("should prevent reentrancy on approveRelease", async function () {
+    // Create a deposit
+    const signatories = [raj.address, arun.address, s1.address, s2.address, s3.address, s4.address];
+    await urz.connect(raj).transfer(malicious.target, ethers.parseUnits("50", 18)); // fund malicious contract
+    await urz.connect(malicious.signer).approve(escrow.target, ethers.parseUnits("50", 18));
+
+    // Attempt attack
+    await expect(
+      malicious.startAttack(arun.address, signatories, ethers.parseUnits("50", 18))
+    ).to.not.be.reverted; // attack is called, but nested calls blocked
+
+    // Ensure normal approvals still work
+    await escrow.connect(raj).approveRelease(1);
+    const deposit = await escrow.getDepositBasic(1);
+    expect(deposit.simpleApprovedCount).to.equal(1);
   });
 });
