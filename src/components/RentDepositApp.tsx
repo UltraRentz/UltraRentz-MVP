@@ -39,7 +39,7 @@ interface RentDepositState {
   renterSignatories: string[];
   landlordSignatories: string[];
   landlordInput: string;
-  ethereumProvider: ethers.BrowserProvider | null;
+  ethereumProvider: ethers.providers.Web3Provider | null;
   ethereumSigner: ethers.Signer | null;
   ethereumAccount: string | null;
   paymentStatus: string | null;
@@ -70,8 +70,6 @@ const RentDepositApp: React.FC = () => {
     paymentTxHash: null,
   });
 
-  const [darkMode, setDarkMode] = useState(true);
-
   const updateState = useCallback((updates: Partial<RentDepositState>) => {
     setState((prevState) => ({ ...prevState, ...updates }));
   }, []);
@@ -95,7 +93,7 @@ const RentDepositApp: React.FC = () => {
     updateState({ paymentStatus: "Connecting Ethereum wallet..." });
     try {
       if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
         const accounts = await window.ethereum.request({
@@ -166,14 +164,37 @@ const RentDepositApp: React.FC = () => {
     state.renterSignatories.length > 0 && state.landlordSignatories.length > 0;
 
   return (
-    <main className="bg-white">
-      <div className="flex justify-center py-4">
-        <h1 className="text-3xl font-bold flex items-center text-transparent bg-clip-text bg-gradient-to-b from-zinc-900 via-zinc-700 to-zinc-600">
-          UltraRentz – Securing, Protecting and Monetising Rent Deposits
-        </h1>
+    <main
+      className="min-h-screen"
+      style={{ backgroundColor: "var(--bg-color)", color: "var(--text-color)" }}
+    >
+      <div className="flex justify-center p-5 lg:p-10  lg:py-8">
+        <div className="text-center max-w-4xl">
+          <h1 className="relative">
+            <span className="text-5xl lg:text-7xl font-black tracking-tight">
+              <span className="text-neutral  bg-clip-text bg-gradient-to-r from-primary via-secondary to-accent animate-pulse">
+                UltraRentz
+              </span>
+            </span>
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary via-secondary to-accent rounded-lg blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+          </h1>
+          <p className="mt-6 text-lg lg:text-xl text-neutral/80 font-medium leading-relaxed max-w-3xl mx-auto">
+            <span className="inline-block bg-gradient-to-r from-primary to-secondary bg-clip-text text-neutral font-semibold">
+              Securing, Protecting and Monetising
+            </span>
+            <br />
+            <span className="text-neutral/70">
+              Rent Deposits with Blockchain Technology
+            </span>
+          </p>
+          <div className="mt-8 flex justify-center">
+            <div className="h-1 w-24 bg-gradient-to-r from-primary via-secondary to-accent rounded-full"></div>
+          </div>
+        </div>
       </div>
       <div
-        className={`min-h-screen p-6 w-full max-w-5xl mx-auto space-y-6 rounded-lg shadow-sm`}
+        className="lg:p-6 p-4 w-[90%] lg:max-w-5xl mx-auto space-y-6 rounded-lg shadow-sm"
+        style={{ backgroundColor: "var(--form-bg)" }}
       >
         <DepositForm
           depositAmount={state.depositAmount}
@@ -202,16 +223,18 @@ const RentDepositApp: React.FC = () => {
           paymentTxHash={state.paymentTxHash}
           setPaymentTxHash={(val) => updateState({ paymentTxHash: val })}
           connectEthereumWallet={connectEthereumWallet}
-          darkMode={darkMode}
           polkadotAccount={null} // <-- Added to fix build error
         />
 
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-700">
+          <h1
+            className="text-2xl font-semibold"
+            style={{ color: "var(--text-color)" }}
+          >
             Step 2: Add Renter and Landlord Signatories (Max 3)
           </h1>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SignatoryForm
             type="Renter"
             signatories={state.renterSignatories}
@@ -230,7 +253,18 @@ const RentDepositApp: React.FC = () => {
         </div>
 
         <button
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg"
+          className="w-full font-bold py-3 px-6 rounded-lg transition-colors duration-200"
+          style={{
+            backgroundColor: "var(--btn-bg)",
+            color: "var(--btn-text)",
+            border: "1px solid var(--border-color)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = "0.9";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = "1";
+          }}
           disabled={
             !isPaymentConfirmed ||
             !areAllSignatoriesAdded ||
@@ -246,11 +280,17 @@ const RentDepositApp: React.FC = () => {
           Finalize Deposit & Signatories
         </button>
 
-        <div className="border-t pt-6">
-          <h2 className="text-xl font-semibold">
+        <div
+          className="pt-6"
+          style={{ borderTop: "1px solid var(--border-color)" }}
+        >
+          <h2
+            className="text-xl font-semibold"
+            style={{ color: "var(--text-color)" }}
+          >
             Step 3: Deposit Release (Coming Soon)
           </h2>
-          <p>
+          <p style={{ color: "var(--text-color)" }}>
             This section will allow deposit release with 4-of-6 multisig
             approval after tenancy ends.
           </p>

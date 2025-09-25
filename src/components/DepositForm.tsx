@@ -45,10 +45,10 @@ interface DepositFormProps {
   paymentMode: "fiat" | "token";
   setPaymentMode: (value: "fiat" | "token") => void;
   fiatConfirmed: boolean;
-  ethereumProvider: ethers.BrowserProvider | null;
+  ethereumProvider: ethers.providers.Web3Provider | null;
   ethereumSigner: ethers.Signer | null;
   ethereumAccount: string | null;
-  setEthereumProvider: (provider: ethers.BrowserProvider | null) => void;
+  setEthereumProvider: (provider: ethers.providers.Web3Provider | null) => void;
   setEthereumSigner: (signer: ethers.Signer | null) => void;
   setEthereumAccount: (account: string | null) => void;
   landlordInput: string;
@@ -59,7 +59,6 @@ interface DepositFormProps {
   setPaymentTxHash: (val: string | null) => void;
   connectEthereumWallet: () => Promise<void>;
   connectPolkadotWallet?: () => Promise<void>; // ✅ Added
-  darkMode: boolean;
   api?: any;
   polkadotAccount?: string | null;
 }
@@ -91,7 +90,6 @@ export default function DepositForm({
   setPaymentTxHash,
   connectEthereumWallet,
   connectPolkadotWallet: _connectPolkadotWallet, // ✅ Added
-  darkMode,
   polkadotAccount: _polkadotAccount, // safely ignore this unused prop
 }: DepositFormProps) {
   const [selectedToken, setSelectedToken] = useState("URZ");
@@ -181,10 +179,13 @@ export default function DepositForm({
   ]);
 
   return (
-    <div className={`p-4 border rounded shadow text-black rounded-xl`}>
+    <div
+      style={{ color: "var(--text-color)" }}
+      className={`p-4 border shadow-xl text-black rounded-xl `}
+    >
       <h2 className="text-lg font-bold mb-4">Rent Deposit Payment</h2>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
           <label className="block mb-1 font-semibold">Tenancy Start Date</label>
           <input
@@ -205,7 +206,7 @@ export default function DepositForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
           <label className="block mb-1 font-semibold">Deposit Amount</label>
           <input
@@ -243,7 +244,7 @@ export default function DepositForm({
         className={inputStyle}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
           <label className="block mb-1 font-semibold">Select Token</label>
           <select
@@ -295,22 +296,18 @@ export default function DepositForm({
       )}
 
       {paymentStatus && (
-        <div
-          className={`mt-4 p-3 border rounded text-sm ${
-            darkMode
-              ? "border-green-400 text-green-400"
-              : "text-green-600 border-green-300"
-          }`}
-        >
-          <p>{paymentStatus}</p>
+        <div className="mt-4 p-3 border rounded text-sm success">
+          <p className="break-words overflow-wrap-anywhere whitespace-pre-wrap">
+            {paymentStatus}
+          </p>
           {paymentTxHash && (
-            <p>
+            <p className="break-all text-xs sm:text-sm">
               Tx:{" "}
               <a
                 href={`https://moonbase.moonscan.io/tx/${paymentTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline"
+                className="underline break-all"
               >
                 {paymentTxHash}
               </a>

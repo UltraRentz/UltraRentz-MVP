@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: "Inter", "Segoe UI", sans-serif;
   background: linear-gradient(135deg, #f0f4ff, #fefefe);
   color: #111;
   min-height: 100vh;
@@ -51,9 +51,9 @@ select {
 
 input:focus,
 select:focus {
-  border-color: #6366f1;
+  border-color: var(--border-color);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
 button.prev,

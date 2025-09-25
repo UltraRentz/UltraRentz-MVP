@@ -1,27 +1,38 @@
-import { useState, useEffect } from "react";
-import RentDepositApp from "./components/RentDepositApp"; // This will now be your orchestrator
-import "./styles.css"; // Your existing custom styles
+import React from "react";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import RentDepositApp from "./components/RentDepositApp";
+import "./styles.css";
 
-export default function App() {
-  const [theme, setTheme] = useState("dark");
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+const ThemeToggle: React.FC = () => {
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="main-container">
-      {/* The Tailwind CSS CDN and config will now be in public/index.html */}
+    <button
+      onClick={toggleTheme}
+      className="theme-toggle"
+      aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+    >
+      <span className="text-lg">{theme === "dark" ? "☀️" : "🌙"}</span>
+      <span className="hidden sm:inline ml-2">
+        {theme === "dark" ? "Light Mode" : "Dark Mode"}
+      </span>
+    </button>
+  );
+};
 
-      <button
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="theme-toggle"
-      >
-        {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
-      </button>
-      
-      {/* RentDepositApp will now act as the orchestrator for your DApp */}
+const AppContent: React.FC = () => {
+  return (
+    <div className="main-container">
+      <ThemeToggle />
       <RentDepositApp />
     </div>
+  );
+};
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
