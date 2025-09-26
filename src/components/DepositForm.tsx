@@ -126,7 +126,7 @@ export default function DepositForm({
       setIsProcessingPayment(false);
       return;
     }
-    if (!ethers.isAddress(landlordInput.trim())) {
+    if (!ethers.utils.isAddress(landlordInput.trim())) {
       setPaymentStatus("❌ Invalid landlord address.");
       setIsProcessingPayment(false);
       return;
@@ -138,7 +138,7 @@ export default function DepositForm({
     }
 
     try {
-      const amountWei = ethers.parseUnits(depositAmount, URZ_DECIMALS);
+      const amountWei = ethers.utils.parseUnits(depositAmount, URZ_DECIMALS);
       const urzContract = new ethers.Contract(
         URZ_CONTRACT_ADDRESS,
         URZ_CONTRACT_ABI,
