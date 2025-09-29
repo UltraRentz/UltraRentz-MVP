@@ -12,8 +12,15 @@ module.exports = {
         accent: "#f59e0b", // Gold (for yields/profits)
       },
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui"],
-        display: ["Poppins", "ui-sans-serif", "system-ui"],
+        sans: [
+          "Inter",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
+        display: ["Inter", "ui-sans-serif", "system-ui"],
       },
       boxShadow: {
         custom: "0 8px 24px rgba(124, 58, 237, 0.2)",
