@@ -32,61 +32,63 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 ---
 
 ## 🚀 Live Demo
-
 🔗 [ultra-rentz-mvp1.vercel.app](https://ultra-rentz-mvp1.vercel.app)
 
 ---
 
 ## 🧠 Features
-
 - 🧾 **Pay Rent Deposits** using URZ tokens  
-- 🖊️ **Multi-signatory system** (4 of 6 must approve for release)  
+- 🖊️ **Multi-signatory escrow system** (4 of 6 must approve for release)  
 - 🧍‍♂️🧍‍♀️ Renter and Landlord each nominate 3 signatories  
 - 🪙 ERC-20 URZ Token deployed on **Moonbase Alpha**  
-- 💳 Choose between **fiat** or **token** payment  
+- 💳 Fiat ↔ Token swap integration (coming soon)  
 - 🌕 MetaMask wallet integration  
-- 🌑 Light/Dark mode toggle  
 - 📅 Automatic tenancy end date calculation  
-- 🧠 On-chain arbitration logic ready for DAO integration  
-- ⚙️ Built using modular TypeScript components
+- ⚖️ On-chain arbitration logic (DAO-based dispute resolution)  
+- 📊 Future: staking + yield features  
+
+---
+
+## 📂 Branch Workflow
+- **main** → Stable, production-ready code  
+- **feature/escrow-contract** → Core escrow contract development  
+- **feature/dispute-resolution** → DAO arbitration logic  
+- **ui-tweak** → Frontend styling and UX adjustments  
+
+Developers should branch off features and open pull requests into the relevant feature branch. Merges into \`main\` happen after review + testing.  
 
 ---
 
 ## 💸 Contract Addresses
-
-- **URZ Token**: ${contracts.URZToken}
-- **Escrow**: ${contracts.Escrow}
+- **URZ Token**: ${contracts.URZToken}  
+- **Escrow**: ${contracts.Escrow} (update after deployment)  
 
 ---
 
-## 💻 Running the Frontend
-
-1. **Navigate to the project root** (where \`package.json\` is located):
-
+## 🔨 Deploy Contracts
+1. Compile contracts:  
 \`\`\`bash
-cd ~/UltraRentz-MVP
+npx hardhat compile
 \`\`\`
 
-2. **Install dependencies**:
-
+2. Deploy to Moonbase Alpha:  
 \`\`\`bash
-npm install
+npx hardhat run scripts/deploy.js --network moonbase
 \`\`\`
 
-3. **Start the development server**:
+3. Update addresses in \`generateReadme.js\` to keep README in sync.  
 
+---
+
+## 🧪 Running Tests
 \`\`\`bash
-npm run dev
+npx hardhat test
+npm run test
 \`\`\`
-
-4. **Open your browser** at the URL shown in the terminal (usually \`http://localhost:5173\`).
-
-> The frontend will hot-reload as you edit TypeScript/React files.
 
 ---
 
 ## 🏗️ Frontend Components
-
 The project includes the following key React components:
 
 ${componentFiles.map((file) => `- ${file}`).join("\n") || "- No components found"}
@@ -94,25 +96,43 @@ ${componentFiles.map((file) => `- ${file}`).join("\n") || "- No components found
 ---
 
 ## 🛠️ Tech Stack
+- Solidity (Smart Contracts)  
+- ethers.js (Ethereum Interaction)  
+- React + TypeScript (Frontend)  
+- Vite (Build Tool)  
+- Hardhat (Testing + Deployment)  
+- Moonbase Alpha (Moonbeam Testnet)  
+- MetaMask (Wallet Integration)  
 
-- Solidity (Smart Contracts)
-- ethers.js (Ethereum Interaction)
-- React (Frontend)
-- TypeScript (Typed JavaScript)
-- Vite (Build Tool)
-- Moonbase Alpha (Moonbeam Testnet)
-- MetaMask (Wallet Integration)
+---
+
+## 🔒 Security
+- ✅ ReentrancyGuard enabled  
+- ✅ Multisig-controlled fund release  
+- 🔜 Formal audit planned before mainnet launch  
+
+---
+
+## 📅 Roadmap
+- **MVP Launch (Q4 2025)**: Escrow + multisig deposit release  
+- **Phase 2 (2026)**: DAO arbitration, staking & yield  
+- **Phase 3**: Cross-border deposits, fiat ↔ crypto swaps  
+
+---
+
+## 👥 Community
+- Twitter: [@UltraRentz](https://twitter.com)  
+- Discord: (coming soon)  
+- Newsletter: (coming soon)  
 
 ---
 
 ## 👥 Contributing
-
-We welcome collaborators! Submit pull requests or issues on GitHub.
+We welcome collaborators! Submit pull requests or issues on GitHub.  
 
 ---
 
 ## 📝 License
-
 MIT License © Adegbenga Ogungbeje (UltraRentz)
 `;
 
