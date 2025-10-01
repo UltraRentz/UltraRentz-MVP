@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // FIX: Named import
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol"; // FIX: Named import, though it doesn't export functions
 
 /// @title UltraRentz Escrow
 /// @notice Escrow for rental deposits with 4-of-6 multisig partial resolution, DAO dispute integration, and ERC20 token support.
@@ -56,8 +56,8 @@ contract Escrow is Ownable, ReentrancyGuard {
     event DepositReleasedToTenant(uint256 indexed id, uint256 amount);
     event DepositReleasedToLandlord(uint256 indexed id, uint256 amount);
     event DisputeTriggered(uint256 indexed id, address by);
-    event DAOResolved(uint256 indexed id, uint256 tenantAmount, uint256 landlordAmount);
-    event DAOSet(address dao);
+    event DaoResolved(uint256 indexed id, uint256 tenantAmount, uint256 landlordAmount);
+    event DaoSet(address dao);
     event ExtensionAdded(bytes32 key, address extension);
     event SimpleReleaseApproved(uint256 indexed id, address approver);
     event PartialReleaseProposed(uint256 indexed id, address indexed signatory, uint256 tenantAmount, uint256 landlordAmount);
@@ -68,7 +68,7 @@ contract Escrow is Ownable, ReentrancyGuard {
     constructor(address initialOwner) Ownable(initialOwner) {}
 
     // ---------- MODIFIERS ----------
-    modifier onlyDAO() {
+    modifier onlyDao() { // FIX: Renamed to mixedCase
         require(msg.sender == dao, "Only DAO");
         _;
     }
@@ -79,10 +79,10 @@ contract Escrow is Ownable, ReentrancyGuard {
     }
 
     // ---------- DAO & EXTENSIONS ----------
-    function setDAO(address _dao) external onlyOwner {
+    function setDao(address _dao) external onlyOwner { // FIX: Renamed to mixedCase
         require(_dao != address(0), "Invalid DAO address");
         dao = _dao;
-        emit DAOSet(_dao);
+        emit DaoSet(_dao);
     }
 
     function addExtension(bytes32 key, address ext) external onlyOwner {
@@ -264,7 +264,7 @@ contract Escrow is Ownable, ReentrancyGuard {
         emit DisputeTriggered(depositId, msg.sender);
     }
 
-    function daoResolve(uint256 depositId, uint256 tenantAmount, uint256 landlordAmount) external nonReentrant onlyDAO {
+    function daoResolve(uint256 depositId, uint256 tenantAmount, uint256 landlordAmount) external nonReentrant onlyDao { // FIX: Renamed to mixedCase
         Deposit storage d = deposits[depositId];
         require(d.status == DepositStatus.InDispute, "Not in dispute");
         require(tenantAmount + landlordAmount == d.amount, "Invalid split");
@@ -275,7 +275,7 @@ contract Escrow is Ownable, ReentrancyGuard {
         _safeTransfer(d.token, d.tenant, tenantAmount, depositId, true);
         _safeTransfer(d.token, d.landlord, landlordAmount, depositId, false);
 
-        emit DAOResolved(depositId, tenantAmount, landlordAmount);
+        emit DaoResolved(depositId, tenantAmount, landlordAmount);
     }
 
     // ---------- INTERNAL RELEASE HELPERS & SAFE TRANSFER ----------
