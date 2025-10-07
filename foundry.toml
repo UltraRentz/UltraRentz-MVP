@@ -1,0 +1,6 @@
+# foundry.toml
+[profile.default]
+src = "src"
+out = "out"
+test = "test"
+libs = ["lib"]
