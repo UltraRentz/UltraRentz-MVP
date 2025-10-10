@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 import DepositForm from "./DepositForm";
 import SignatoryForm from "./SignatoryForm";
 import { ethers } from "ethers";
+import TopHeader from "../layouts/TopHeader";
 
 // ✅ Fix: Extend global Window type to include `ethereum`
 declare global {
@@ -171,11 +172,6 @@ const RentDepositApp: React.FC = () => {
       <div className="flex justify-center p-5 lg:p-10  lg:py-8">
         <div className="text-center max-w-4xl">
           <h1 className="relative">
-            <span className="text-5xl lg:text-7xl font-black tracking-tight">
-              <span className="text-neutral  bg-clip-text bg-gradient-to-r from-primary via-secondary to-accent animate-pulse">
-                UltraRentz
-              </span>
-            </span>
             <div className="absolute -inset-1 bg-gradient-to-r from-primary via-secondary to-accent rounded-lg blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
           </h1>
           <p className="mt-6 text-lg lg:text-xl text-neutral/80 font-medium leading-relaxed max-w-3xl mx-auto">
@@ -193,7 +189,7 @@ const RentDepositApp: React.FC = () => {
         </div>
       </div>
       <div
-        className="lg:p-6 p-4 w-[90%] lg:max-w-5xl mx-auto space-y-6 rounded-lg shadow-sm"
+        className="lg:p-6 p-4 w-[90%] lg:max-w-5xl mx-auto space-y-6 rounded-lg shadow-sm bg-white dark:bg-gray-800 "
         style={{ backgroundColor: "var(--form-bg)" }}
       >
         <DepositForm

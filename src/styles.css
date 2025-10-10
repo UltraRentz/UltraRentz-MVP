@@ -1,7 +1,7 @@
 :root[data-theme="dark"] {
-  --bg-color: #1f2937; /* Neutral - Dark Charcoal */
+  --bg-color: #000; /* Neutral - Dark Charcoal */
   --text-color: #f9fafb; /* Background - Soft Gray (as light text) */
-  --form-bg: #374151; /* Slightly lighter than neutral */
+  --form-bg: #1f2937; /* Slightly lighter than neutral */
   --btn-bg: #2563eb; /* Primary - Brand Blue */
   --btn-text: white;
   --input-bg: #4b5563; /* Medium gray for inputs */
@@ -15,9 +15,9 @@
 }
 
 :root[data-theme="light"] {
-  --bg-color: #f9fafb; /* Background - Soft Gray */
+  --bg-color: #faf7f3; /* Background - Soft Gray */
   --text-color: #1f2937; /* Neutral - Dark Charcoal */
-  --form-bg: #ffffff; /* Pure white for forms */
+  --form-bg: #faf7f3; /* Pure white for forms */
   --btn-bg: #2563eb; /* Primary - Brand Blue */
   --btn-text: white;
   --input-bg: #f3f4f6; /* Light gray for inputs */

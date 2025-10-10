@@ -1,31 +1,47 @@
-import React from "react";
-import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
-import RentDepositApp from "./components/RentDepositApp";
+import React, { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import TopHeader from "./layouts/TopHeader";
+import MobileMenu from "./components/MobileMenu";
+import HomePage from "./pages/HomePage";
+import RentDepositsPage from "./pages/RentDepositsPage";
+import SignatoryYieldPage from "./pages/SignatoryYieldPage";
+import DisputesPage from "./pages/DisputesPage";
+import DashboardPage from "./pages/DashboardPage";
 import "./styles.css";
 
-const ThemeToggle: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="theme-toggle"
-      aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-    >
-      <span className="text-lg">{theme === "dark" ? "☀️" : "🌙"}</span>
-      <span className="hidden sm:inline ml-2">
-        {theme === "dark" ? "Light Mode" : "Dark Mode"}
-      </span>
-    </button>
-  );
-};
-
 const AppContent: React.FC = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
   return (
-    <div className="main-container">
-      <ThemeToggle />
-      <RentDepositApp />
-    </div>
+    <Router>
+      <div
+        className="min-h-screen"
+        style={{
+          backgroundColor: "var(--bg-color)",
+          color: "var(--text-color)",
+        }}
+      >
+        <TopHeader onMobileMenuToggle={toggleMobileMenu} />
+        <MobileMenu isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/rent-deposits" element={<RentDepositsPage />} />
+          <Route path="/signatory-yield" element={<SignatoryYieldPage />} />
+          <Route path="/disputes" element={<DisputesPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Routes>
+      </div>
+    </Router>
   );
 };
 
