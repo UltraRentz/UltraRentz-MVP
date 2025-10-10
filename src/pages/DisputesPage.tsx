@@ -1,4 +1,5 @@
 import React from "react";
+import StatCard from "../components/StatCard";
 
 const DisputesPage: React.FC = () => {
   return (
@@ -23,38 +24,27 @@ const DisputesPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Active Disputes */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Active Disputes
-            </h3>
-            <p className="text-3xl font-bold text-red-600 mb-2">0</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Requiring resolution
-            </p>
-          </div>
-
-          {/* Resolved Disputes */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Resolved Disputes
-            </h3>
-            <p className="text-3xl font-bold text-green-600 mb-2">0</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Successfully resolved
-            </p>
-          </div>
-
-          {/* Average Resolution Time */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Avg. Resolution Time
-            </h3>
-            <p className="text-3xl font-bold text-blue-600 mb-2">24h</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Fast resolution
-            </p>
-          </div>
+          <StatCard
+            title="Active Disputes"
+            value="0"
+            subtitle="Requiring resolution"
+            color="red"
+            icon="⚠️"
+          />
+          <StatCard
+            title="Resolved Disputes"
+            value="0"
+            subtitle="Successfully resolved"
+            color="green"
+            icon="✅"
+          />
+          <StatCard
+            title="Avg. Resolution Time"
+            value="24h"
+            subtitle="Fast resolution"
+            color="blue"
+            icon="⏱️"
+          />
         </div>
 
         {/* Dispute List */}

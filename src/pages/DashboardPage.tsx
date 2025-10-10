@@ -1,4 +1,5 @@
 import React from "react";
+import StatCard from "../components/StatCard";
 
 const DashboardPage: React.FC = () => {
   return (
@@ -24,47 +25,34 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {/* Total Deposits */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Total Deposits
-            </h3>
-            <p className="text-3xl font-bold text-blue-600 mb-2">0</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">All time</p>
-          </div>
-
-          {/* Active Deposits */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Active Deposits
-            </h3>
-            <p className="text-3xl font-bold text-green-600 mb-2">0</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Currently locked
-            </p>
-          </div>
-
-          {/* Signatory Votes */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Signatory Votes
-            </h3>
-            <p className="text-3xl font-bold text-purple-600 mb-2">0</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Votes cast
-            </p>
-          </div>
-
-          {/* Yield Earned */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Yield Earned
-            </h3>
-            <p className="text-3xl font-bold text-pink-600 mb-2">0.00 URZ</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Total rewards
-            </p>
-          </div>
+          <StatCard
+            title="Total Deposits"
+            value="0"
+            subtitle="All time"
+            color="blue"
+            icon="📦"
+          />
+          <StatCard
+            title="Active Deposits"
+            value="0"
+            subtitle="Currently locked"
+            color="green"
+            icon="🔒"
+          />
+          <StatCard
+            title="Signatory Votes"
+            value="0"
+            subtitle="Votes cast"
+            color="purple"
+            icon="🗳️"
+          />
+          <StatCard
+            title="Yield Earned"
+            value="0.00 URZ"
+            subtitle="Total rewards"
+            color="pink"
+            icon="💰"
+          />
         </div>
 
         {/* Recent Activity */}
