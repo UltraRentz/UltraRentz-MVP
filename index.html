@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UltraRentz DApp</title>
+    <!-- You can optionally link your styles.css here if it's not imported in React components -->
+    <!-- <link rel="stylesheet" href="/styles.css"> -->
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Tailwind CSS CDN - IMPORTANT: Place these scripts here -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Correct way to configure Tailwind when using the CDN
+        tailwind.config = {
+          theme: {
+            extend: {
+              fontFamily: {
+                sans: ['Inter', 'sans-serif'], // Ensuring 'Inter' font as per general instructions
+              }
+            }
+          }
+        };
+    </script>
+    
+    <!-- Your React app's main JavaScript bundle will be loaded here by Vite/Webpack -->
+    <!-- Ensure this script is after the Tailwind config so Tailwind is available -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
