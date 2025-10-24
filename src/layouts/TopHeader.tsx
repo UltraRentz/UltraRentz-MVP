@@ -1,12 +1,36 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import ThemeToggle from "../components/ThemeToggle";
+import { useAuth } from "../contexts/AuthContext";
 
 interface TopHeaderProps {
   onMobileMenuToggle: () => void;
 }
 
 const TopHeader: React.FC<TopHeaderProps> = ({ onMobileMenuToggle }) => {
+  const { authState, connectWallet, logout, isMetaMaskAvailable } = useAuth();
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnectWallet = async () => {
+    if (authState.isAuthenticated) {
+      await logout();
+    } else {
+      setIsConnecting(true);
+      try {
+        await connectWallet();
+      } catch (error) {
+        console.error("Failed to connect wallet:", error);
+        alert("Failed to connect wallet. Please try again.");
+      } finally {
+        setIsConnecting(false);
+      }
+    }
+  };
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
   return (
     <header
       style={{ backgroundColor: "var(--bg-color)" }}
@@ -71,9 +95,32 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMobileMenuToggle }) => {
           {/* Right Side - Desktop */}
           <div className="hidden lg:flex items-center space-x-3">
             <ThemeToggle />
-            <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2 rounded-full font-semibold text-sm transition-all duration-300 transform hover:scale-105">
-              Connect Wallet
-            </button>
+            {authState.isAuthenticated ? (
+              <div className="flex items-center space-x-3">
+                <div className="text-sm text-gray-300">
+                  {authState.user &&
+                    formatAddress(authState.user.walletAddress)}
+                </div>
+                <button
+                  onClick={handleConnectWallet}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full font-semibold text-sm transition-all duration-300"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleConnectWallet}
+                disabled={!isMetaMaskAvailable() || isConnecting}
+                className={`px-6 py-2 rounded-full font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  isMetaMaskAvailable() && !isConnecting
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                    : "bg-gray-400 text-white cursor-not-allowed"
+                }`}
+              >
+                {isConnecting ? "Connecting..." : "Connect Wallet"}
+              </button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}

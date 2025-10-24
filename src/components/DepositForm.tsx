@@ -96,7 +96,7 @@ export default function DepositForm({
   const [selectedFiat, setSelectedFiat] = useState("USD");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const inputStyle = `w-full border p-2 mb-2 rounded bg-white text-black border-gray-300`;
+  const inputStyle = `w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white border-gray-300`;
 
   useEffect(() => {
     if (paymentMode === "token") {
@@ -187,7 +187,9 @@ export default function DepositForm({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
-          <label className="block mb-1 font-semibold">Tenancy Start Date</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Tenancy Start Date
+          </label>
           <input
             type="date"
             value={tenancyStartDate}
@@ -196,7 +198,9 @@ export default function DepositForm({
           />
         </div>
         <div>
-          <label className="block mb-1 font-semibold">Tenancy End Date</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Tenancy End Date
+          </label>
           <input
             type="date"
             value={tenancyEnd}
@@ -208,7 +212,9 @@ export default function DepositForm({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
-          <label className="block mb-1 font-semibold">Deposit Amount</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Deposit Amount
+          </label>
           <input
             type="number"
             value={depositAmount}
@@ -217,7 +223,7 @@ export default function DepositForm({
           />
         </div>
         <div>
-          <label className="block mb-1 font-semibold">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Tenancy Duration (Months)
           </label>
           <select
@@ -234,7 +240,7 @@ export default function DepositForm({
         </div>
       </div>
 
-      <label className="block mb-1 font-semibold">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         Landlord Wallet Address
       </label>
       <input
@@ -246,7 +252,9 @@ export default function DepositForm({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
-          <label className="block mb-1 font-semibold">Select Token</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Token
+          </label>
           <select
             value={selectedToken}
             onChange={(e) => setSelectedToken(e.target.value)}
@@ -261,7 +269,9 @@ export default function DepositForm({
         </div>
 
         <div>
-          <label className="block mb-1 font-semibold">Select Fiat</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Fiat
+          </label>
           <select
             value={selectedFiat}
             onChange={(e) => setSelectedFiat(e.target.value)}

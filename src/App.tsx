@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import TopHeader from "./layouts/TopHeader";
 import MobileMenu from "./components/MobileMenu";
 import HomePage from "./pages/HomePage";
@@ -48,7 +49,9 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
