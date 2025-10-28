@@ -35,11 +35,35 @@ const io = new Server(server, {
   },
 });
 
-// Middleware - more permissive CORS for development
+// Middleware - CORS configuration for both development and production
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? [process.env.FRONTEND_URL || "https://ultrarentz-mvp.vercel.app"]
+    : [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+      ];
+
 app.use(
   cors({
-    origin: true, // Allow all origins in development
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (
+        process.env.NODE_ENV === "development" ||
+        allowedOrigins.includes(origin)
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     credentials: true,
     optionsSuccessStatus: 200,
@@ -48,25 +72,6 @@ app.use(
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-
-// Add CORS headers to all responses
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With"
-  );
-  res.header("Access-Control-Allow-Credentials", "true");
-
-  // Handle preflight requests
-  if (req.method === "OPTIONS") {
-    res.sendStatus(200);
-    return;
-  }
-
-  next();
-});
 
 // Health check endpoint
 app.get("/health", (req, res) => {
