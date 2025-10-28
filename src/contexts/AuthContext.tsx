@@ -39,7 +39,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const connectWallet = async (): Promise<void> => {
     try {
-      await authService.authenticateWithWallet();
+      // Use simple wallet connection without signature for testing
+      // Change to authenticateWithWallet() for production with full signature verification
+      await authService.connectWalletOnly();
     } catch (error) {
       console.error("Failed to connect wallet:", error);
       throw error;
