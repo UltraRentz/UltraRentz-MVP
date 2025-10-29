@@ -18,11 +18,16 @@ const SignatoryYieldPage: React.FC = () => {
     activeDeposits: 0,
   });
 
-  const [chartDataResponse, setChartDataResponse] = useState({
+  const [chartDataResponse, setChartDataResponse] = useState<{
+    chartData: any[];
+    period?: string;
+  }>({
     chartData: [],
   });
 
-  const [yieldHistory, setYieldHistory] = useState({
+  const [yieldHistory, setYieldHistory] = useState<{
+    data: any[];
+  }>({
     data: [],
   });
 
@@ -78,20 +83,46 @@ const SignatoryYieldPage: React.FC = () => {
   };
 
   const handleConnectWallet = async () => {
+    if (isConnecting) {
+      console.log("Wallet connection already in progress");
+      return;
+    }
+
     setIsConnecting(true);
     try {
       console.log("Starting wallet connection...");
+
+      // Check if MetaMask is available first
+      if (!authService.isMetaMaskAvailable()) {
+        alert(
+          "MetaMask is not installed. Please install MetaMask extension to connect your wallet."
+        );
+        return;
+      }
 
       // Try simple connection first (without signature verification)
       await authService.connectWalletOnly();
 
       console.log("Wallet connection successful!");
       // The auth context will update automatically
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to connect wallet:", error);
-      alert(
-        `Failed to connect wallet: ${error.message || "Please try again."}`
-      );
+
+      // Provide user-friendly error messages
+      let errorMessage = "Failed to connect wallet.";
+
+      if (error.message?.includes("timeout")) {
+        errorMessage = "Wallet connection timed out. Please try again.";
+      } else if (error.message?.includes("rejected")) {
+        errorMessage = "Wallet connection was cancelled.";
+      } else if (error.message?.includes("not installed")) {
+        errorMessage =
+          "MetaMask is not installed. Please install the extension.";
+      } else if (error.message) {
+        errorMessage = `Failed to connect: ${error.message}`;
+      }
+
+      alert(errorMessage);
     } finally {
       setIsConnecting(false);
     }

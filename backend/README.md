@@ -64,7 +64,7 @@ A Node.js + Express + PostgreSQL backend for the UltraRentz blockchain-based ren
    CHAIN_ID=1287
 
    # Auth
-   JWT_SECRET=your_secret_key_change_this_in_production
+   JWT_SECRET=c446ff13cfece15c8bc3e19dd21000da
    JWT_EXPIRY=24h
    ```
 
@@ -269,4 +269,3 @@ src/
 ## License
 
 ISC License
-

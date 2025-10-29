@@ -117,7 +117,29 @@ export class AuthService {
 
     try {
       console.log("Connecting to wallet only...");
-      const address = await this.connectWallet();
+
+      // Check if MetaMask is available
+      if (!this.isMetaMaskAvailable()) {
+        throw new Error(
+          "MetaMask is not installed. Please install MetaMask to continue."
+        );
+      }
+
+      // Add timeout to wallet connection
+      const connectWalletWithTimeout = async (): Promise<string> => {
+        const connectPromise = this.connectWallet();
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(
+            () =>
+              reject(new Error("Wallet connection timed out after 30 seconds")),
+            30000
+          );
+        });
+
+        return Promise.race([connectPromise, timeoutPromise]);
+      };
+
+      const address = await connectWalletWithTimeout();
       console.log("Wallet connected, address:", address);
 
       // Create a simple user object without backend verification
@@ -164,7 +186,7 @@ export class AuthService {
       console.log("Step 2: Getting nonce from backend...");
       // Get nonce from backend
       const nonceResponse = await authApi.getNonce(address);
-      const { nonce, message } = nonceResponse.data;
+      const { message } = nonceResponse.data;
       console.log("Step 2 complete: Nonce received, message:", message);
 
       console.log("Step 3: Signing message with MetaMask...");
@@ -218,23 +240,25 @@ export class AuthService {
 
       this.notifyListeners();
       console.log("Step 6 complete: Authentication successful!");
-    } catch (error) {
+    } catch (error: any) {
       this.setLoading(false);
       console.error("Authentication error:", error);
 
       // Provide more specific error messages
-      if (error.message.includes("User rejected")) {
+      if (error?.message?.includes("User rejected")) {
         throw new Error("Wallet connection was cancelled. Please try again.");
-      } else if (error.message.includes("timeout")) {
+      } else if (error?.message?.includes("timeout")) {
         throw new Error(
           "Request timed out. Please make sure MetaMask is open and try again."
         );
-      } else if (error.message.includes("Signature request timed out")) {
+      } else if (error?.message?.includes("Signature request timed out")) {
         throw new Error(
           "MetaMask signature request timed out. Please try again."
         );
-      } else {
+      } else if (error?.message) {
         throw new Error(`Authentication failed: ${error.message}`);
+      } else {
+        throw new Error("Authentication failed. Please try again.");
       }
     }
   }
