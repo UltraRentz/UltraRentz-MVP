@@ -280,15 +280,9 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Not fundable");
 
-        // Reset hasApproved mapping for gas cleanup
-        for (uint8 i = 0; i < 6; i++) {
-            address signer = e.signatories[i];
-            if (e.hasApproved[signer]) {
-                e.hasApproved[signer] = false;
-            }
-        }
+        // Gas optimization: Only reset approvals counter
+        e.approvals = 0;
 
-        // Changed to use the new transfer helper
         _executeTransfer(escrowId, true, EscrowState.Released);
 
         emit DisputeResolved(escrowId, EscrowState.Released);

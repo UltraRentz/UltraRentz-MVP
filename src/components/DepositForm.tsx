@@ -1,223 +1,315 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { ethers } from "ethers";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 
-const URZ_CONTRACT_ADDRESS = '0xB1c01f7e6980AbdbAec0472C0e1A58EB46D39f3C';
+// --- Contract Constants (Polygon Mumbai) ---
+const URZ_CONTRACT_ADDRESS = "0x19f8a847Fca917363a5f1Cb23c9A8829DBa38989";
+const ESCROW_CONTRACT_ADDRESS = "0x3B8e4cD1Ce9369C146a9EDb96948562662C7820E";
+
 const URZ_CONTRACT_ABI = [
-  "function name() view returns (string)",
-  "function symbol() view returns (string)",
-  "function decimals() view returns (uint8)",
-  "function totalSupply() view returns (uint256)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function transfer(address recipient, uint256 amount) returns (bool)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function transferFrom(address from, address to, uint256 value) returns (bool)",
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
-  "event Approval(address indexed owner, address indexed spender, uint256 value)"
+  "function approve(address spender, uint256 value) returns (bool)"
 ];
+
+const ESCROW_ABI = [
+  "function createEscrow(address landlord,uint256 amount,address token,uint256 startDate,uint256 endDate,address[6] signatories) returns (uint256)",
+  "function fundEscrow(uint256 escrowId) external"
+];
+
 const URZ_DECIMALS = 18;
 
-const POPULAR_TOKENS = [
-  { name: "USD Coin", symbol: "USDC" },
-  { name: "Tether", symbol: "USDT" },
-  { name: "DAI Stablecoin", symbol: "DAI" },
-  { name: "Wrapped Ether", symbol: "WETH" },
-  { name: "UltraRentz Token", symbol: "URZ" },
-];
+export default function DepositForm(props: any) {
+  const {
+    depositAmount, setDepositAmount,
+    tenancyStartDate, setTenancyStartDate,
+    tenancyEnd, setTenancyEnd,
+    landlordInput, setLandlordInput,
+    paymentStatus, setPaymentStatus, 
+    setPaymentTxHash,
+    paymentTxHash,
+    darkMode
+  } = props;
 
-const POPULAR_FIATS = [
-  { name: "US Dollar", symbol: "USD" },
-  { name: "Euro", symbol: "EUR" },
-  { name: "British Pound", symbol: "GBP" },
-  { name: "Japanese Yen", symbol: "JPY" },
-  { name: "Swiss Franc", symbol: "CHF" },
-];
+  const { login, logout } = usePrivy(); 
+  const { wallets } = useWallets();
 
-interface DepositFormProps {
-  depositAmount: string;
-  setDepositAmount: (value: string) => void;
-  tenancyStartDate: string;
-  setTenancyStartDate: (value: string) => void;
-  tenancyDurationMonths: string;
-  setTenancyDurationMonths: (value: string) => void;
-  tenancyEnd: string;
-  setTenancyEnd: (value: string) => void;
-  paymentMode: 'fiat' | 'token';
-  setPaymentMode: (value: 'fiat' | 'token') => void;
-  fiatConfirmed: boolean;
-  ethereumProvider: ethers.BrowserProvider | null;
-  ethereumSigner: ethers.Signer | null;
-  ethereumAccount: string | null;
-  setEthereumProvider: (provider: ethers.BrowserProvider | null) => void;
-  setEthereumSigner: (signer: ethers.Signer | null) => void;
-  setEthereumAccount: (account: string | null) => void;
-  landlordInput: string;
-  setLandlordInput: (val: string) => void;
-  paymentStatus: string | null;
-  setPaymentStatus: (val: string | null) => void;
-  paymentTxHash: string | null;
-  setPaymentTxHash: (val: string | null) => void;
-  connectEthereumWallet: () => Promise<void>;
-  connectPolkadotWallet?: () => Promise<void>; // ✅ Added
-  darkMode: boolean;
-  api?: any;
-  polkadotAccount?: string | null;
-}
+  const embeddedWallet = wallets.find((w) => w.walletClientType === "embedded");
+  const externalWallet = wallets.find((w) => w.walletClientType !== "embedded");
 
-export default function DepositForm({
-  depositAmount,
-  setDepositAmount,
-  tenancyStartDate,
-  setTenancyStartDate,
-  tenancyDurationMonths,
-  setTenancyDurationMonths,
-  tenancyEnd,
-  setTenancyEnd,
-  paymentMode,
-  // Unused props safely prefixed with underscore:
-  setPaymentMode: _setPaymentMode,
-  fiatConfirmed: _fiatConfirmed,
-  setEthereumProvider: _setEthereumProvider,
-  setEthereumSigner: _setEthereumSigner,
-  setEthereumAccount: _setEthereumAccount,
-  ethereumProvider,
-  ethereumSigner,
-  ethereumAccount,
-  landlordInput,
-  setLandlordInput,
-  paymentStatus,
-  setPaymentStatus,
-  paymentTxHash,
-  setPaymentTxHash,
-  connectEthereumWallet,
-  connectPolkadotWallet: _connectPolkadotWallet, // ✅ Added
-  darkMode,
-  polkadotAccount: _polkadotAccount // safely ignore this unused prop
-}: DepositFormProps) {
-  const [selectedToken, setSelectedToken] = useState("URZ");
-  const [selectedFiat, setSelectedFiat] = useState("USD");
+  const [tenantSig1, setTenantSig1] = useState("");
+  const [tenantSig2, setTenantSig2] = useState("");
+  const [tenantSig3, setTenantSig3] = useState("");
+  const [landlordSig1, setLandlordSig1] = useState("");
+  const [landlordSig2, setLandlordSig2] = useState("");
+  const [landlordSig3, setLandlordSig3] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const inputStyle = `w-full border p-2 mb-2 rounded ${darkMode ? 'bg-black text-white border-white' : 'bg-white text-black border-black'}`;
+  // Input validation state
+  const [inputErrors, setInputErrors] = useState<{[key: string]: string}>({});
 
-  useEffect(() => {
-    if (paymentMode === "token") {
-      setPaymentStatus(null);
-      setPaymentTxHash(null);
-      setIsProcessingPayment(false);
-    }
-  }, [paymentMode]);
+  // Validation helpers
+  const validateAddress = (addr: string) =>
+    addr && ethers.isAddress(addr) ? "" : "Invalid Ethereum address";
+  const validateAmount = (amt: string) =>
+    amt && !isNaN(Number(amt)) && Number(amt) > 0 ? "" : "Enter a valid deposit amount";
+
+  // Check if all fields are valid
+  const allValid =
+    !validateAmount(depositAmount) &&
+    !validateAddress(landlordInput) &&
+    !validateAddress(tenantSig1) &&
+    !validateAddress(tenantSig2) &&
+    !validateAddress(tenantSig3) &&
+    !validateAddress(landlordSig1) &&
+    !validateAddress(landlordSig2) &&
+    !validateAddress(landlordSig3) &&
+    tenancyStartDate &&
+    tenancyEnd;
+
+  const inputStyle = `w-full border p-2 mb-2 rounded ${
+    darkMode ? "bg-black text-white border-white" : "bg-white text-black border-black"
+  }`;
 
   const handlePayToken = useCallback(async () => {
-    setPaymentStatus(null);
-    setPaymentTxHash(null);
-    setIsProcessingPayment(true);
-
-    const parsedDepositAmount = parseFloat(depositAmount);
-    if (isNaN(parsedDepositAmount) || parsedDepositAmount <= 0) {
-      setPaymentStatus("❌ Invalid deposit amount.");
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (!tenancyStartDate || !tenancyEnd || new Date(tenancyEnd) <= new Date(tenancyStartDate)) {
-      setPaymentStatus("❌ Invalid tenancy dates.");
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (!ethers.isAddress(landlordInput.trim())) {
-      setPaymentStatus("❌ Invalid landlord address.");
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (!ethereumProvider || !ethereumSigner || !ethereumAccount) {
-      setPaymentStatus("❌ Wallet not connected.");
-      setIsProcessingPayment(false);
-      return;
-    }
-
     try {
-      const amountWei = ethers.parseUnits(depositAmount, URZ_DECIMALS);
-      const urzContract = new ethers.Contract(URZ_CONTRACT_ADDRESS, URZ_CONTRACT_ABI, ethereumSigner);
-      const tx = await urzContract.transfer(landlordInput.trim(), amountWei);
-
-      setPaymentStatus(`⏳ Transaction sent! Waiting... Tx Hash: ${tx.hash}`);
-      setPaymentTxHash(tx.hash);
-
-      const receipt = await tx.wait();
-      if (receipt?.status === 1) {
-        setPaymentStatus(`🎉 Payment Confirmed! ${depositAmount} ${selectedToken} sent.`);
-      } else {
-        setPaymentStatus("❌ Transaction failed or reverted.");
-      }
-    } catch (error: any) {
-      if (error.code === 4001) {
-        setPaymentStatus("❌ Transaction rejected.");
-      } else {
-        setPaymentStatus(`❌ Error: ${error.message}`);
-      }
+      setIsProcessingPayment(true);
+      setPaymentStatus(null);
       setPaymentTxHash(null);
-    } finally {
-      setIsProcessingPayment(false);
+
+      const walletToUse = embeddedWallet || externalWallet;
+      if (!walletToUse) return setPaymentStatus("❌ Please connect a wallet first.");
+
+      const signer = await walletToUse.getEthersSigner();
+
+      if (!ethers.isAddress(landlordInput)) {
+        return setPaymentStatus("❌ Invalid landlord wallet address.");
+      }
+
+      const signatories = [
+        tenantSig1, tenantSig2, tenantSig3,
+        landlordSig1, landlordSig2, landlordSig3
+      ];
+
+      if (!signatories.every(ethers.isAddress)) {
+        return setPaymentStatus("❌ One or more signatory addresses are invalid.");
+      }
+
+      const amountWei = ethers.parseUnits(depositAmount, URZ_DECIMALS);
+      const start = Math.floor(new Date(tenancyStartDate).getTime() / 1000);
+      const end = Math.floor(new Date(tenancyEnd).getTime() / 1000);
+
+      const urz = new ethers.Contract(URZ_CONTRACT_ADDRESS, URZ_CONTRACT_ABI, signer);
+      const escrow = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
+
+      setPaymentStatus("⏳ Approving escrow to transfer URZ...");
+      let tx = await urz.approve(ESCROW_CONTRACT_ADDRESS, amountWei);
+      await tx.wait();
+
+      setPaymentStatus("⏳ Creating escrow agreement...");
+      tx = await escrow.createEscrow(
+        landlordInput.trim(),
+        amountWei,
+        URZ_CONTRACT_ADDRESS,
+        start,
+        end,
+        signatories
+      );
+      const receipt = await tx.wait();
+      const escrowId = receipt?.logs?.[0]?.args?.[0]?.toString() ?? "0";
+
+      setPaymentStatus("⏳ Locking funds in escrow...");
+      tx = await escrow.fundEscrow(escrowId);
+      await tx.wait();
+
+      setPaymentStatus(`✅ Rent deposit successfully locked in escrow! Escrow ID: ${escrowId}`);
+      setPaymentTxHash(tx.hash);
+    } catch (err: any) {
+      setPaymentStatus("❌ " + (err.message || "Transaction failed"));
     }
-  }, [ethereumProvider, ethereumSigner, ethereumAccount, depositAmount, tenancyStartDate, tenancyEnd, landlordInput, selectedToken]);
+
+    setIsProcessingPayment(false);
+  }, [
+    embeddedWallet, externalWallet,
+    depositAmount, tenancyStartDate, tenancyEnd,
+    landlordInput, tenantSig1, tenantSig2, tenantSig3,
+    landlordSig1, landlordSig2, landlordSig3,
+    setPaymentTxHash, 
+    paymentTxHash
+  ]);
 
   return (
-    <div className={`p-4 border rounded shadow ${darkMode ? 'bg-black text-white border-white' : 'bg-white text-black border-black'}`}>
-      <h2 className="text-lg font-bold mb-4">Rent Deposit Payment</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className={`max-w-lg w-full p-6 rounded-xl shadow-lg ${darkMode ? "bg-black text-white" : "bg-white text-black"}`}>
+        <h2 className="text-2xl font-bold mb-6 text-center">Create Rent Deposit</h2>
 
-      <label className="block mb-1 font-semibold">Deposit Amount</label>
-      <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className={inputStyle} />
-
-      <label className="block mb-1 font-semibold">Tenancy Start Date</label>
-      <input type="date" value={tenancyStartDate} onChange={(e) => setTenancyStartDate(e.target.value)} className={inputStyle} />
-
-      <label className="block mb-1 font-semibold">Tenancy Duration (Months)</label>
-      <select value={tenancyDurationMonths} onChange={(e) => setTenancyDurationMonths(e.target.value)} className={inputStyle}>
-        {Array.from({ length: 8 }, (_, i) => (i + 1) * 3).map((m) => (
-          <option key={m} value={m}>{m} months</option>
-        ))}
-      </select>
-
-      <label className="block mb-1 font-semibold">Tenancy End Date</label>
-      <input type="date" value={tenancyEnd} onChange={(e) => setTenancyEnd(e.target.value)} className={inputStyle} />
-
-      <label className="block mb-1 font-semibold">Landlord Wallet Address</label>
-      <input type="text" value={landlordInput} onChange={(e) => setLandlordInput(e.target.value)} className={inputStyle} />
-
-      <label className="block mb-1 font-semibold">Select Token</label>
-      <select value={selectedToken} onChange={(e) => setSelectedToken(e.target.value)} className={inputStyle}>
-        {POPULAR_TOKENS.map((token) => (
-          <option key={token.symbol} value={token.symbol}>{token.name} ({token.symbol})</option>
-        ))}
-      </select>
-
-      <label className="block mb-1 font-semibold">Select Fiat</label>
-      <select value={selectedFiat} onChange={(e) => setSelectedFiat(e.target.value)} className={inputStyle}>
-        {POPULAR_FIATS.map((fiat) => (
-          <option key={fiat.symbol} value={fiat.symbol}>{fiat.name} ({fiat.symbol})</option>
-        ))}
-      </select>
-
-      {!ethereumAccount ? (
-        <button onClick={connectEthereumWallet} className="bg-blue-500 text-white px-4 py-2 rounded w-full mt-4">Connect Wallet</button>
-      ) : (
-        <button onClick={handlePayToken} disabled={isProcessingPayment} className="bg-green-600 text-white px-4 py-2 rounded w-full mt-4">
-          {isProcessingPayment ? "Processing..." : `Pay Token (${selectedToken})`}
-        </button>
-      )}
-
-      {paymentStatus && (
-        <div className={`mt-4 p-3 border rounded text-sm ${darkMode ? 'border-green-400 text-green-400' : 'text-green-600 border-green-300'}`}>
-          <p>{paymentStatus}</p>
-          {paymentTxHash && (
-            <p>
-              Tx: <a href={`https://moonbase.moonscan.io/tx/${paymentTxHash}`} target="_blank" rel="noopener noreferrer" className="underline">
-                {paymentTxHash}
-              </a>
-            </p>
-          )}
+        <div className="mb-4">
+          <label className="block font-semibold mb-1">Deposit Amount (URZ)</label>
+          <input
+            className={inputStyle}
+            placeholder="e.g. 1000"
+            value={depositAmount}
+            onChange={e => {
+              setDepositAmount(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                depositAmount: validateAmount(e.target.value)
+              }));
+            }}
+          />
+          <span className="text-xs text-gray-500">Enter the deposit amount in URZ tokens</span>
+          {inputErrors.depositAmount && <span className="text-xs text-red-500">{inputErrors.depositAmount}</span>}
         </div>
-      )}
+
+        <div className="flex gap-4 mb-4">
+          <div className="flex-1">
+            <label className="block font-semibold mb-1">Tenancy Start</label>
+            <input
+              type="date"
+              className={inputStyle}
+              value={tenancyStartDate}
+              onChange={e => setTenancyStartDate(e.target.value)}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block font-semibold mb-1">Tenancy End</label>
+            <input
+              type="date"
+              className={inputStyle}
+              value={tenancyEnd}
+              onChange={e => setTenancyEnd(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block font-semibold mb-1">Landlord Wallet</label>
+          <input
+            className={inputStyle}
+            placeholder="0x..."
+            value={landlordInput}
+            onChange={e => {
+              setLandlordInput(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                landlordInput: validateAddress(e.target.value)
+              }));
+            }}
+          />
+          {inputErrors.landlordInput && <span className="text-xs text-red-500">{inputErrors.landlordInput}</span>}
+        </div>
+
+        <hr className="my-4" />
+
+        <div className="mb-4">
+          <h3 className="font-semibold mb-2">Tenant Signatories (3)</h3>
+          <input
+            className={inputStyle}
+            placeholder="Tenant Address #1"
+            value={tenantSig1}
+            onChange={e => {
+              setTenantSig1(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                tenantSig1: validateAddress(e.target.value)
+              }));
+            }}
+          />
+          {inputErrors.tenantSig1 && <span className="text-xs text-red-500">{inputErrors.tenantSig1}</span>}
+          <input
+            className={inputStyle}
+            placeholder="Tenant Address #2"
+            value={tenantSig2}
+            onChange={e => {
+              setTenantSig2(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                tenantSig2: validateAddress(e.target.value)
+              }));
+            }}
+          />
+          {inputErrors.tenantSig2 && <span className="text-xs text-red-500">{inputErrors.tenantSig2}</span>}
+          <input
+            className={inputStyle}
+            placeholder="Tenant Address #3"
+            value={tenantSig3}
+            onChange={e => {
+              setTenantSig3(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                tenantSig3: validateAddress(e.target.value)
+              }));
+            }}
+          />
+          {inputErrors.tenantSig3 && <span className="text-xs text-red-500">{inputErrors.tenantSig3}</span>}
+        </div>
+
+        <div className="mb-4">
+          <h3 className="font-semibold mb-2">Landlord Signatories (3)</h3>
+          <input
+            className={inputStyle}
+            placeholder="Landlord Address #1"
+            value={landlordSig1}
+            onChange={e => {
+              setLandlordSig1(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                landlordSig1: validateAddress(e.target.value)
+              }));
+            }}
+          />
+          {inputErrors.landlordSig1 && <span className="text-xs text-red-500">{inputErrors.landlordSig1}</span>}
+          <input
+            className={inputStyle}
+            placeholder="Landlord Address #2"
+            value={landlordSig2}
+            onChange={e => {
+              setLandlordSig2(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                landlordSig2: validateAddress(e.target.value)
+              }));
+            }}
+          />
+          {inputErrors.landlordSig2 && <span className="text-xs text-red-500">{inputErrors.landlordSig2}</span>}
+          <input
+            className={inputStyle}
+            placeholder="Landlord Address #3"
+            value={landlordSig3}
+            onChange={e => {
+              setLandlordSig3(e.target.value);
+              setInputErrors(errors => ({
+                ...errors,
+                landlordSig3: validateAddress(e.target.value)
+              }));
+            }}
+          />
+          {inputErrors.landlordSig3 && <span className="text-xs text-red-500">{inputErrors.landlordSig3}</span>}
+        </div>
+
+        {wallets.length === 0 ? (
+          <button onClick={login} className="bg-blue-600 text-white px-4 py-2 rounded w-full mt-4 hover:bg-blue-700">
+            Login / Create Wallet
+          </button>
+        ) : (
+          <>
+            <button 
+              onClick={handlePayToken} 
+              disabled={isProcessingPayment || !allValid} 
+              className="bg-green-600 text-white px-4 py-2 rounded w-full mt-4 hover:bg-green-700 disabled:bg-gray-400"
+            >
+              {isProcessingPayment ? "Processing Transaction..." : "Lock Deposit in Escrow"}
+            </button>
+            <button 
+              onClick={logout} 
+              className="bg-red-500 text-white px-4 py-2 rounded w-full mt-2 hover:bg-red-600"
+            >
+              Log Out Raj
+            </button>
+          </>
+        )}
+
+        {paymentStatus && <p className={`mt-4 text-sm border p-2 rounded ${paymentStatus.startsWith("❌") ? "text-red-500 border-red-500" : "text-green-500 border-green-500"}`}>{paymentStatus}</p>}
+        {paymentTxHash && <p className="mt-2 text-xs text-gray-500 break-all">Tx Hash: {paymentTxHash}</p>}
+      </div>
     </div>
   );
 }
