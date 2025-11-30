@@ -6,6 +6,15 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 
 ---
 
+## 🆕 Recent Feature Updates
+
+### Nov 27, 2025
+- Added a security audit script (`script/security-audit.sh`) using Slither to automatically analyze Solidity contracts for vulnerabilities. This script helps detect issues like reentrancy, unchecked transfers, and dangerous timestamp usage.
+- Optimized the `_releaseToLandlord` function in the `UltraRentzEscrow` contract to reduce gas costs by resetting only the approvals counter instead of looping through all signatories. This change lowers transaction fees and improves contract efficiency.
+- All tests passed successfully after these changes, confirming both security and efficiency improvements.
+
+---
+
 ## 🚀 Live Demo
 
 🔗 [ultra-rentz-mvp1.vercel.app](https://ultra-rentz-mvp1.vercel.app)
@@ -109,4 +118,4 @@ We welcome collaborators! Submit pull requests or issues on GitHub.
 
 ## 📝 License
 
-MIT License © Adegbenga Ogungbeje (UltraRentz)  
+MIT License © Adegbenga Ogungbeje (UltraRentz)
