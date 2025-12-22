@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import "openzeppelin-contracts/contracts/access/Ownable.sol";
+import "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 /// @title UltraRentz Stablecoin (URZ)
 /// @notice ERC20 stablecoin with extension points for DeFi features
@@ -19,7 +19,7 @@ contract UltraRentzStable is ERC20, Ownable {
     event FlashLoan(address indexed borrower, uint256 urzAmount);
     event Arbitrage(address indexed user, uint256 profit);
 
-    constructor() ERC20("UltraRentz Stable", "URZ") {
+    constructor(address initialOwner) ERC20("UltraRentz Stable", "URZ") Ownable(initialOwner) {
         _mint(msg.sender, INITIAL_SUPPLY);
     }
 

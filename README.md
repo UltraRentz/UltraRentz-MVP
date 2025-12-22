@@ -15,11 +15,23 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 
 ---
 
+
+### Dec 22, 2025
+- Added on-chain reputation system: After escrow completion, tenants and landlords can rate each other 1–5 stars. Ratings are stored on-chain and average scores are queryable for any user, building trust and transparency into the platform.
+
+### Nov 30, 2025
+ - Implemented deposit tokenization: URZ stablecoin tokens are minted to tenants when deposits are funded and burned when deposits are released or refunded, creating a direct mapping between escrowed funds and tokenized assets.
+ - Added comprehensive Foundry tests for escrow/token integration, DAO dispute resolution, and tokenization logic.
+ - Project is now ready for staking/lending module development to demonstrate high APY and attract TVL.
+
+---
+
 ## 🚀 Live Demo
 
 🔗 [ultra-rentz-mvp1.vercel.app](https://ultra-rentz-mvp1.vercel.app)
 
 ---
+
 
 ## 🧠 Features
 
@@ -32,7 +44,8 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 - 🌑 Light/Dark mode toggle  
 - 📅 Automatic tenancy end date calculation  
 - 🧠 On-chain arbitration logic ready for DAO integration  
-- ⚙️ Built using modular TypeScript components  
+- ⭐ **On-chain reputation system:** Tenants and landlords can rate each other 1–5 stars after escrow completion. Average ratings are stored and visible on-chain, building trust and transparency.  
+- ⚙️ Built using modular TypeScript components
 
 ---
 

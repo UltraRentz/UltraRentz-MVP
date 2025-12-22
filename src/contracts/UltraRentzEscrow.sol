@@ -10,6 +10,43 @@ import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 /// @notice Facilitates secure rent deposit management using 4-of-6 multi-signature approval
 /// @dev Integrates ERC20 tokens (URZ), DAO resolution, 7-day windows, and 2-appeal limits.
 contract UltraRentzEscrow is Ownable, ReentrancyGuard {
+        // --- REPUTATION SYSTEM ---
+        mapping(address => uint256) public totalRatingsReceived;
+        mapping(address => uint256) public ratingsSum;
+        mapping(address => mapping(uint256 => bool)) public hasRated; // user => escrowId => rated
+        event UserRated(address indexed rater, address indexed ratee, uint256 escrowId, uint8 rating);
+
+        /// @notice Rate a counterparty after escrow is finalized (Released or Refunded)
+        /// @param escrowId The escrow to rate
+        /// @param rating 1-5 stars
+        function rateCounterparty(uint256 escrowId, uint8 rating) external {
+            require(rating >= 1 && rating <= 5, "Rating must be 1-5");
+            Escrow storage e = escrows[escrowId];
+            require(e.exists, "Escrow does not exist");
+            require(
+                e.state == EscrowState.Released || e.state == EscrowState.Refunded,
+                "Escrow not finalized"
+            );
+            address counterparty;
+            if (msg.sender == e.tenant) {
+                counterparty = e.landlord;
+            } else if (msg.sender == e.landlord) {
+                counterparty = e.tenant;
+            } else {
+                revert("Only tenant or landlord can rate");
+            }
+            require(!hasRated[msg.sender][escrowId], "Already rated for this escrow");
+            hasRated[msg.sender][escrowId] = true;
+            totalRatingsReceived[counterparty] += 1;
+            ratingsSum[counterparty] += rating;
+            emit UserRated(msg.sender, counterparty, escrowId, rating);
+        }
+
+        /// @notice Get average rating for a user (returns 0 if no ratings)
+        function getAverageRating(address user) external view returns (uint256) {
+            if (totalRatingsReceived[user] == 0) return 0;
+            return ratingsSum[user] / totalRatingsReceived[user];
+        }
     // --- UPDATED ENUM: Added Decision and PendingFinalization states ---
     enum EscrowState { 
         Created, 

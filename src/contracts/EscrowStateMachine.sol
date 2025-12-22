@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "openzeppelin-contracts/contracts/access/Ownable.sol";
-import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+import "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "./UltraRentzDAO.sol";
 import "./UltraRentzStable.sol";
 
@@ -56,7 +56,7 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address daoAddress, address urzTokenAddress) {
+    constructor(address initialOwner, address daoAddress, address urzTokenAddress) Ownable(initialOwner) {
         dao = UltraRentzDAO(daoAddress);
         urzToken = UltraRentzStable(urzTokenAddress);
     }
@@ -107,11 +107,19 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
 
     function resolveByDAO(uint256 escrowId) external {
         require(disputeReferred[escrowId], "Not referred");
-        UltraRentzDAO.Decision decision = dao.disputes(escrowId).decision;
-        uint256 amountReleased = dao.disputes(escrowId).amount;
+        (
+            , // escrowId
+            , // tenant
+            , // landlord
+            uint256 amountReleased,
+            UltraRentzDAO.Decision decision,
+            , // createdAt
+            , // appealed
+            bool resolved
+        ) = dao.disputes(escrowId);
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.InDispute, "Not in dispute");
-        require(dao.disputes(escrowId).resolved, "DAO not resolved");
+        require(resolved, "DAO not resolved");
         if (decision == UltraRentzDAO.Decision.FullRelease) {
             e.state = EscrowState.Released;
             IERC20(e.token).transfer(e.landlord, amountReleased);
@@ -128,8 +136,18 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
 
     function appealToDAO(uint256 escrowId) external onlyTenant(escrowId) {
         require(disputeReferred[escrowId], "Not referred");
-        require(dao.disputes(escrowId).resolved, "DAO not resolved");
-        require(!dao.disputes(escrowId).appealed, "Already appealed");
+        (
+            , // escrowId
+            , // tenant
+            , // landlord
+            , // amount
+            , // decision
+            , // createdAt
+            bool appealed,
+            bool resolved
+        ) = dao.disputes(escrowId);
+        require(resolved, "DAO not resolved");
+        require(!appealed, "Already appealed");
         dao.submitAppeal(escrowId);
         emit DAOAppeal(escrowId);
     }

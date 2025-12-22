@@ -25,6 +25,8 @@ contract UltraRentzDAO is Ownable {
     event DecisionMade(uint256 indexed escrowId, Decision decision, uint256 amountReleased);
     event AppealSubmitted(uint256 indexed escrowId);
 
+    constructor(address initialOwner) Ownable(initialOwner) {}
+
     function referDispute(uint256 escrowId, address tenant, address landlord, uint256 amount) external onlyOwner {
         disputes[escrowId] = Dispute({
             escrowId: escrowId,
