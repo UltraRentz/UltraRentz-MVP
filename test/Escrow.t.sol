@@ -20,57 +20,167 @@ contract TestERC20 is ERC20 {
         _mint(to, amount);
     }
 }
+
+// =========================================================================
+// 5. SECURITY: REENTRANCY ATTACK SIMULATION
+// =========================================================================
+contract Malicious {
+    UltraRentzEscrow public escrow;
+    uint256 public targetEscrowId;
+    bool public attackAttempted;
+    constructor(UltraRentzEscrow _escrow, uint256 _escrowId) {
+        escrow = _escrow;
+        targetEscrowId = _escrowId;
+    }
+    // Try to recursively call approveRelease
+    fallback() external payable {
+        if (!attackAttempted) {
+            attackAttempted = true;
+            try escrow.approveRelease(targetEscrowId) {
+                // Should not succeed
+            } catch {}
+        }
+    }
+}
 // --- END Mock ---
 
 
 contract EscrowTest is Test {
 
-            // =========================================================================
-            // 5. SECURITY: REENTRANCY ATTACK SIMULATION
-            // =========================================================================
-            contract Malicious {
-                UltraRentzEscrow public escrow;
-                uint256 public targetEscrowId;
-                bool public attackAttempted;
-                constructor(UltraRentzEscrow _escrow, uint256 _escrowId) {
-                    escrow = _escrow;
-                    targetEscrowId = _escrowId;
-                }
-                // Try to recursively call approveRelease
-                fallback() external payable {
-                    if (!attackAttempted) {
-                        attackAttempted = true;
-                        try escrow.approveRelease(targetEscrowId) {
-                            // Should not succeed
-                        } catch {}
-                    }
-                }
-            }
+    // =========================================================================
+    // 6. ON-CHAIN REPUTATION SYSTEM TESTS
+    // =========================================================================
+    function testTenantCanRateLandlordAfterRelease() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId);
+        }
+        // Tenant rates landlord
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId, 5);
+        assertEq(escrow.totalRatingsReceived(landlord), 1);
+        assertEq(escrow.ratingsSum(landlord), 5);
+        assertEq(escrow.getAverageRating(landlord), 5);
+    }
 
-            function testReentrancyGuardBlocksAttack() public {
-                uint256 escrowId = _createEscrowAndFund(tenant, landlord);
-                // Replace one signatory with malicious contract
-                Malicious attacker = new Malicious(escrow, escrowId);
-                address[6] memory sigs = signatories;
-                sigs[0] = address(attacker);
-                // Create a new escrow with attacker as signatory
-                vm.startPrank(tenant);
-                urzToken.approve(address(escrow), RENT_AMOUNT);
-                uint256 attackEscrowId = escrow.createEscrow(
-                    landlord,
-                    RENT_AMOUNT,
-                    address(urzToken),
-                    block.timestamp,
-                    block.timestamp + DURATION,
-                    sigs
-                );
-                escrow.fundEscrow(attackEscrowId);
-                vm.stopPrank();
-                // Attacker tries to trigger reentrancy
-                vm.prank(address(attacker));
-                escrow.approveRelease(attackEscrowId);
-                // If ReentrancyGuard works, attackAttempted should be true but no reentrancy occurred
-                assertTrue(attacker.attackAttempted(), "Attack should have been attempted");
+    function testLandlordCanRateTenantAfterRefund() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Dispute and refund
+        vm.prank(tenant);
+        escrow.raiseDispute(escrowId);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(escrowId, false);
+        vm.warp(block.timestamp + RESOLUTION_WINDOW + 1);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(escrowId);
+        // Landlord rates tenant
+        vm.prank(landlord);
+        escrow.rateCounterparty(escrowId, 4);
+        assertEq(escrow.totalRatingsReceived(tenant), 1);
+        assertEq(escrow.ratingsSum(tenant), 4);
+        assertEq(escrow.getAverageRating(tenant), 4);
+    }
+
+    function testCannotRateBeforeEscrowFinalized() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Escrow not finalized"));
+        escrow.rateCounterparty(escrowId, 5);
+    }
+
+    function testCannotRateTwiceForSameEscrow() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId);
+        }
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId, 5);
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Already rated for this escrow"));
+        escrow.rateCounterparty(escrowId, 4);
+    }
+
+    function testOnlyTenantOrLandlordCanRate() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId);
+        }
+        address notParty = signatories[5];
+        vm.prank(notParty);
+        vm.expectRevert(bytes("Only tenant or landlord can rate"));
+        escrow.rateCounterparty(escrowId, 5);
+    }
+
+    function testAverageRatingMultipleRatings() public {
+        uint256 escrowId1 = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId1);
+        }
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId1, 4);
+        uint256 escrowId2 = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId2);
+        }
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId2, 2);
+        assertEq(escrow.totalRatingsReceived(landlord), 2);
+        assertEq(escrow.ratingsSum(landlord), 6);
+        assertEq(escrow.getAverageRating(landlord), 3);
+    }
+
+
+// =========================================================================
+// 5. SECURITY: REENTRANCY ATTACK SIMULATION
+// =========================================================================
+contract Malicious {
+    UltraRentzEscrow public escrow;
+    uint256 public targetEscrowId;
+    bool public attackAttempted;
+    constructor(UltraRentzEscrow _escrow, uint256 _escrowId) {
+        escrow = _escrow;
+        targetEscrowId = _escrowId;
+    }
+    // Try to recursively call approveRelease
+    fallback() external payable {
+        if (!attackAttempted) {
+            attackAttempted = true;
+            try escrow.approveRelease(targetEscrowId) {
+                // Should not succeed
+            } catch {}
+        }
+    }
+}
+
+function testReentrancyGuardBlocksAttack() public {
+    uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+    // Replace one signatory with malicious contract
+    Malicious attacker = new Malicious(escrow, escrowId);
+    address[6] memory sigs = signatories;
+    sigs[0] = address(attacker);
+    // Create a new escrow with attacker as signatory
+    vm.startPrank(tenant);
+    urzToken.approve(address(escrow), RENT_AMOUNT);
+    uint256 attackEscrowId = escrow.createEscrow(
+        landlord,
+        RENT_AMOUNT,
+        address(urzToken),
+        block.timestamp,
+        block.timestamp + DURATION,
+        sigs
+    );
+    escrow.fundEscrow(attackEscrowId);
+    vm.stopPrank();
+    // Attacker tries to trigger reentrancy
+    vm.prank(address(attacker));
+    escrow.approveRelease(attackEscrowId);
+    // If ReentrancyGuard works, attackAttempted should be true but no reentrancy occurred
+    assertTrue(attacker.attackAttempted(), "Attack should have been attempted");
                 // No funds should be released (approvals < 4)
                 (,,,,,, uint8 approvals,,,) = escrow.getEscrowDetails(attackEscrowId);
                 assertEq(approvals, 1, "Only one approval should be counted");
@@ -165,6 +275,28 @@ contract EscrowTest is Test {
 
     function testNonSignatoryCannotApprove() public {
         uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+
+        // =========================================================================
+        // 5. SECURITY: REENTRANCY ATTACK SIMULATION
+        // =========================================================================
+        contract Malicious {
+            UltraRentzEscrow public escrow;
+            uint256 public targetEscrowId;
+            bool public attackAttempted;
+            constructor(UltraRentzEscrow _escrow, uint256 _escrowId) {
+                escrow = _escrow;
+                targetEscrowId = _escrowId;
+            }
+            // Try to recursively call approveRelease
+            fallback() external payable {
+                if (!attackAttempted) {
+                    attackAttempted = true;
+                    try escrow.approveRelease(targetEscrowId) {
+                        // Should not succeed
+                    } catch {}
+                }
+            }
+        }
         vm.prank(maliciousActor);
         vm.expectRevert(bytes("Not a signatory"));
         escrow.approveRelease(escrowId);

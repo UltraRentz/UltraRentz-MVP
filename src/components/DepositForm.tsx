@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import TransakDeposit from "./TransakDeposit";
 import { ethers } from "ethers";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 
@@ -26,7 +27,8 @@ export default function DepositForm(props: any) {
     paymentStatus, setPaymentStatus, 
     setPaymentTxHash,
     paymentTxHash,
-    darkMode
+    darkMode,
+    paymentMode
   } = props;
 
   const { login, logout } = usePrivy(); 
@@ -138,14 +140,33 @@ export default function DepositForm(props: any) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className={`max-w-lg w-full p-6 rounded-xl shadow-lg ${darkMode ? "bg-black text-white" : "bg-white text-black"}`}>
+      <div className={`max-w-lg w-full p-6 rounded-xl shadow-lg ${darkMode ? "bg-black text-white" : "bg-white text-black"}`}> 
         <h2 className="text-2xl font-bold mb-6 text-center">Create Rent Deposit</h2>
 
+        {/* Payment Mode Switcher */}
+        <div className="mb-4 flex gap-2">
+          <button
+            className={`px-3 py-1 rounded ${paymentMode === 'fiat' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-black'}`}
+            onClick={() => props.setPaymentMode('fiat')}
+          >
+            Pay with Fiat
+          </button>
+          <button
+            className={`px-3 py-1 rounded ${paymentMode === 'token' ? 'bg-green-600 text-white' : 'bg-gray-300 text-black'}`}
+            onClick={() => props.setPaymentMode('token')}
+          >
+            Pay with Token
+          </button>
+        </div>
+
+        {/* Deposit Amount Input */}
         <div className="mb-4">
-          <label className="block font-semibold mb-1">Deposit Amount (URZ)</label>
+          <label className="block font-semibold mb-1">
+            Deposit Amount {paymentMode === 'fiat' ? '(GBP)' : '(URZ)'}
+          </label>
           <input
             className={inputStyle}
-            placeholder="e.g. 1000"
+            placeholder={paymentMode === 'fiat' ? 'e.g. 450' : 'e.g. 1000'}
             value={depositAmount}
             onChange={e => {
               setDepositAmount(e.target.value);
@@ -155,9 +176,19 @@ export default function DepositForm(props: any) {
               }));
             }}
           />
-          <span className="text-xs text-gray-500">Enter the deposit amount in URZ tokens</span>
+          <span className="text-xs text-gray-500">
+            {paymentMode === 'fiat' ? 'Enter the deposit amount in GBP' : 'Enter the deposit amount in URZ tokens'}
+          </span>
           {inputErrors.depositAmount && <span className="text-xs text-red-500">{inputErrors.depositAmount}</span>}
         </div>
+
+        {/* Fiat Payment Button (Transak) */}
+        {paymentMode === 'fiat' && (
+          <div className="mb-4">
+            <TransakDeposit amountGBP={depositAmount} />
+            <span className="text-xs text-gray-500 block mt-2">You will be able to pay your deposit in GBP and it will be held as stablecoin in escrow.</span>
+          </div>
+        )}
 
         <div className="flex gap-4 mb-4">
           <div className="flex-1">
