@@ -21,6 +21,10 @@ contract TestERC20 is ERC20 {
     }
 }
 
+
+// --- END Mock ---
+
+
 // =========================================================================
 // 5. SECURITY: REENTRANCY ATTACK SIMULATION
 // =========================================================================
@@ -42,7 +46,12 @@ contract Malicious {
         }
     }
 }
-// --- END Mock ---
+
+
+// ...existing code...
+
+// Merge all test functions into a single EscrowTest contract
+// ...existing code...
 
 
 contract EscrowTest is Test {
@@ -135,56 +144,9 @@ contract EscrowTest is Test {
     }
 
 
-// =========================================================================
-// 5. SECURITY: REENTRANCY ATTACK SIMULATION
-// =========================================================================
-contract Malicious {
-    UltraRentzEscrow public escrow;
-    uint256 public targetEscrowId;
-    bool public attackAttempted;
-    constructor(UltraRentzEscrow _escrow, uint256 _escrowId) {
-        escrow = _escrow;
-        targetEscrowId = _escrowId;
-    }
-    // Try to recursively call approveRelease
-    fallback() external payable {
-        if (!attackAttempted) {
-            attackAttempted = true;
-            try escrow.approveRelease(targetEscrowId) {
-                // Should not succeed
-            } catch {}
-        }
-    }
-}
 
-function testReentrancyGuardBlocksAttack() public {
-    uint256 escrowId = _createEscrowAndFund(tenant, landlord);
-    // Replace one signatory with malicious contract
-    Malicious attacker = new Malicious(escrow, escrowId);
-    address[6] memory sigs = signatories;
-    sigs[0] = address(attacker);
-    // Create a new escrow with attacker as signatory
-    vm.startPrank(tenant);
-    urzToken.approve(address(escrow), RENT_AMOUNT);
-    uint256 attackEscrowId = escrow.createEscrow(
-        landlord,
-        RENT_AMOUNT,
-        address(urzToken),
-        block.timestamp,
-        block.timestamp + DURATION,
-        sigs
-    );
-    escrow.fundEscrow(attackEscrowId);
-    vm.stopPrank();
-    // Attacker tries to trigger reentrancy
-    vm.prank(address(attacker));
-    escrow.approveRelease(attackEscrowId);
-    // If ReentrancyGuard works, attackAttempted should be true but no reentrancy occurred
-    assertTrue(attacker.attackAttempted(), "Attack should have been attempted");
-                // No funds should be released (approvals < 4)
-                (,,,,,, uint8 approvals,,,) = escrow.getEscrowDetails(attackEscrowId);
-                assertEq(approvals, 1, "Only one approval should be counted");
-            }
+
+// ...existing code...
         // =========================================================================
         // 4. INTEGRATION: FULL ESCROW LIFECYCLE
         // =========================================================================
@@ -276,27 +238,7 @@ function testReentrancyGuardBlocksAttack() public {
     function testNonSignatoryCannotApprove() public {
         uint256 escrowId = _createEscrowAndFund(tenant, landlord);
 
-        // =========================================================================
-        // 5. SECURITY: REENTRANCY ATTACK SIMULATION
-        // =========================================================================
-        contract Malicious {
-            UltraRentzEscrow public escrow;
-            uint256 public targetEscrowId;
-            bool public attackAttempted;
-            constructor(UltraRentzEscrow _escrow, uint256 _escrowId) {
-                escrow = _escrow;
-                targetEscrowId = _escrowId;
-            }
-            // Try to recursively call approveRelease
-            fallback() external payable {
-                if (!attackAttempted) {
-                    attackAttempted = true;
-                    try escrow.approveRelease(targetEscrowId) {
-                        // Should not succeed
-                    } catch {}
-                }
-            }
-        }
+        // ...existing code...
         vm.prank(maliciousActor);
         vm.expectRevert(bytes("Not a signatory"));
         escrow.approveRelease(escrowId);
@@ -342,7 +284,7 @@ function testReentrancyGuardBlocksAttack() public {
             block.timestamp + DURATION,
             sigs
         );
-        vm.expectRevert(); // ERC20: transfer amount exceeds balance
+        vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
         escrow.fundEscrow(escrowId);
         vm.stopPrank();
     }

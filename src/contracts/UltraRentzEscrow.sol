@@ -3,13 +3,16 @@
 pragma solidity ^0.8.20;
 
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import "openzeppelin-contracts/contracts/security/Pausable.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
 /// @title UltraRentz Escrow Contract
 /// @notice Facilitates secure rent deposit management using 4-of-6 multi-signature approval
 /// @dev Integrates ERC20 tokens (URZ), DAO resolution, 7-day windows, and 2-appeal limits.
-contract UltraRentzEscrow is Ownable, ReentrancyGuard {
+contract UltraRentzEscrow is Ownable, ReentrancyGuard, Pausable {
+    using SafeERC20 for IERC20;
         // --- REPUTATION SYSTEM ---
         mapping(address => uint256) public totalRatingsReceived;
         mapping(address => uint256) public ratingsSum;
@@ -121,7 +124,11 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
     constructor(address initialOwner)
         Ownable(initialOwner)
     {
-        // Owner is now the DAO/Admin (initialOwner)
+        require(initialOwner != address(0), "DAO/Admin cannot be zero address");
+    }
+
+    receive() external payable {
+        revert("UltraRentzEscrow does not accept Ether");
     }
 
     // --- Core Functions (No changes needed) ---
@@ -132,10 +139,14 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
         uint256 startDate,
         uint256 endDate,
         address[6] memory signatories
-    ) external returns (uint256 id) {
-        require(landlord != address(0), "Invalid landlord");
-        require(token != address(0), "Invalid token");
-        require(endDate > startDate, "Invalid dates");
+    ) external whenNotPaused returns (uint256 id) {
+        require(landlord != address(0), "Invalid landlord address");
+        require(token != address(0), "Invalid token address");
+        require(endDate > startDate, "End date must be after start date");
+        require(msg.sender != address(0), "Tenant cannot be zero address");
+        for (uint8 i = 0; i < 6; i++) {
+            require(signatories[i] != address(0), "Signatory cannot be zero address");
+        }
 
         bytes32 key = keccak256(abi.encodePacked(msg.sender, landlord, startDate));
         require(!createdEscrowKeys[key], "Duplicate escrow");
@@ -157,16 +168,16 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
         emit EscrowCreated(id, msg.sender, landlord, token);
     }
 
-    function fundEscrow(uint256 escrowId) external onlyTenant(escrowId) nonReentrant {
+    function fundEscrow(uint256 escrowId) external onlyTenant(escrowId) nonReentrant whenNotPaused {
         Escrow storage e = escrows[escrowId];
-        require(e.state == EscrowState.Created, "Not fundable");
-        IERC20(e.token).transferFrom(msg.sender, address(this), e.amount);
+        require(e.state == EscrowState.Created, "Escrow is not fundable");
+        IERC20(e.token).safeTransferFrom(msg.sender, address(this), e.amount);
         e.state = EscrowState.Funded;
 
         emit EscrowFunded(escrowId, e.amount);
     }
 
-    function approveRelease(uint256 escrowId) external onlySignatory(escrowId) nonReentrant {
+    function approveRelease(uint256 escrowId) external onlySignatory(escrowId) nonReentrant whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Invalid state");
         require(!e.hasApproved[msg.sender], "Already approved");
@@ -181,7 +192,7 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
         }
     }
 
-    function releaseAfterEndDate(uint256 escrowId) external onlySignatory(escrowId) nonReentrant {
+    function releaseAfterEndDate(uint256 escrowId) external onlySignatory(escrowId) nonReentrant whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Invalid state");
         require(block.timestamp > e.endDate, "Tenancy not ended");
@@ -197,7 +208,7 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
         }
     }
 
-    function raiseDispute(uint256 escrowId) external onlyTenant(escrowId) {
+    function raiseDispute(uint256 escrowId) external onlyTenant(escrowId) whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Cannot dispute");
 
@@ -211,7 +222,7 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
     // --- DAO RESOLUTION FUNCTIONS (UPDATED) ---
 
     // Function 1: Initial resolution (must be within 7 days of dispute)
-    function resolveDispute(uint256 escrowId, bool releaseToLandlord) external onlyDAO nonReentrant {
+    function resolveDispute(uint256 escrowId, bool releaseToLandlord) external onlyDAO nonReentrant whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.InDispute, "Not in dispute");
         require(block.timestamp <= e.disputeTimestamp + RESOLUTION_WINDOW, "Resolution time expired");
@@ -223,7 +234,7 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
     }
     
     // Function 2: Tenant submits appeal (max 2 times)
-    function submitAppeal(uint256 escrowId) external onlyTenant(escrowId) {
+    function submitAppeal(uint256 escrowId) external onlyTenant(escrowId) whenNotPaused {
     // Correctly retrieve the struct from storage using the 'storage' keyword
     Escrow storage e = escrows[escrowId];
     
@@ -243,7 +254,7 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
 }
 
     // Function 3: Final appeal decision (must be within 7 days of appeal)
-    function finalizeAppealDecision(uint256 escrowId, bool releaseToLandlord) external onlyDAO nonReentrant {
+    function finalizeAppealDecision(uint256 escrowId, bool releaseToLandlord) external onlyDAO nonReentrant whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.PendingAppeal, "No pending appeal");
         require(block.timestamp <= e.disputeTimestamp + RESOLUTION_WINDOW, "Resolution time expired");
@@ -256,7 +267,7 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
     }
     
     // Function 4: Finalize the entire dispute process and transfer funds
-    function finalizeEscrow(uint256 escrowId) external onlyDAO nonReentrant {
+    function finalizeEscrow(uint256 escrowId) external onlyDAO nonReentrant whenNotPaused {
         Escrow storage e = escrows[escrowId];
         
         // Check for final decision state
@@ -299,16 +310,21 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard {
     // Internal helper function for fund transfer
     function _executeTransfer(uint256 escrowId, bool releaseToLandlord, EscrowState finalState) internal {
         Escrow storage e = escrows[escrowId];
-        
+        e.state = finalState;
         if (releaseToLandlord) {
-            e.state = finalState;
-            IERC20(e.token).transfer(e.landlord, e.amount);
+            IERC20(e.token).safeTransfer(e.landlord, e.amount);
             emit EscrowReleased(escrowId, e.landlord, e.token);
         } else {
-            e.state = finalState;
-            IERC20(e.token).transfer(e.tenant, e.amount);
+            IERC20(e.token).safeTransfer(e.tenant, e.amount);
             emit EscrowRefunded(escrowId, e.tenant, e.token);
         }
+    }
+    // --- Emergency Pause ---
+    function pause() external onlyDAO {
+        _pause();
+    }
+    function unpause() external onlyDAO {
+        _unpause();
     }
 
     // --- Internal Helpers & Views ---

@@ -19,8 +19,8 @@ contract EscrowStateMachineTest is Test {
     uint256 public constant RENT_AMOUNT = 1000 ether;
 
     function setUp() public {
-        escrow = new EscrowStateMachine();
         urzToken = new TestStableToken();
+        escrow = new EscrowStateMachine(daoAdmin, daoAdmin, address(urzToken));
         urzToken.mint(tenant, RENT_AMOUNT * 10);
     }
 

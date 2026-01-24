@@ -7,6 +7,33 @@ import { ethers } from "ethers";
 
 import DepositForm from './DepositForm';
 import SignatoryForm from './SignatoryForm';
+import DepositReleaseForm from './DepositReleaseForm';
+  // Step 3: Approvals and Release State
+  const [approvals, setApprovals] = useState<string[]>([]);
+  const escrowId = "ESCROW123456"; // TODO: Replace with real escrowId from contract
+
+  // Simulate current user (for demo, use first renter or landlord)
+  const currentUser = state.renterSignatories[0] || state.landlordSignatories[0] || "me";
+
+  // Approve handler
+  const handleApprove = () => {
+    if (!approvals.includes(currentUser)) {
+      setApprovals([...approvals, currentUser]);
+    }
+  };
+
+  // Release handler
+  const handleRelease = () => {
+    if (approvals.length >= 4) {
+      alert("Deposit Released! (stub)");
+    } else {
+      alert("Not enough approvals to release deposit.");
+    }
+  };
+
+  // isReleasable logic: 4 of 6 approvals
+  const allSignatories = [...state.renterSignatories, ...state.landlordSignatories];
+  const isReleasable = approvals.length >= 4 && allSignatories.length === 6;
 
 interface RentDepositState {
   depositAmount: string;
@@ -31,6 +58,12 @@ interface RentDepositState {
 }
 
 const RentDepositOrchestrator: React.FC = () => {
+    // --- Test Mode Banner ---
+    const TestModeBanner = () => (
+      <div className="bg-yellow-200 text-yellow-900 font-semibold text-center py-2 px-4 rounded mb-4 border border-yellow-400 shadow">
+        ⚠️ Test Mode: No real funds are processed. Both fiat and token payments are for demonstration only.
+      </div>
+    );
   const [state, setState] = useState<RentDepositState>({
     depositAmount: '',
     tenancyStartDate: '',
@@ -57,21 +90,22 @@ const RentDepositOrchestrator: React.FC = () => {
   useEffect(() => {
     const initializeApi = async () => {
       updateState({ paymentStatus: "Connecting to Polkadot..." });
-      try {
-        const provider = new WsProvider('wss://rpc.polkadot.io');
-        const apiInstance = await ApiPromise.create({ provider });
-        await apiInstance.isReady;
-        updateState({ api: apiInstance, paymentStatus: "Polkadot API ready." });
-      } catch (error: any) {
-        console.error("Failed to connect to Polkadot API:", error);
-        updateState({ paymentStatus: `Error connecting to Polkadot: ${error.message || "Unknown error"}` });
-      }
-    };
-
-    if (!state.api) {
-      initializeApi();
-    }
-
+      return (
+        <div className="rent-deposit-orchestrator-container">
+          <TestModeBanner />
+          <DepositForm
+            depositAmount={state.depositAmount}
+            tenancyStartDate={state.tenancyStartDate}
+            tenancyEnd={state.tenancyEnd}
+            landlordInput={state.landlordInput}
+            paymentStatus={state.paymentStatus}
+            setPaymentStatus={(val) => updateState({ paymentStatus: val })}
+            setPaymentTxHash={(val) => updateState({ paymentTxHash: val })}
+            paymentTxHash={state.paymentTxHash}
+            darkMode={false}
+            paymentMode={state.paymentMode}
+            setPaymentMode={(val) => updateState({ paymentMode: val })}
+          />
     return () => {
       state.api?.disconnect();
     };
@@ -222,36 +256,21 @@ const RentDepositOrchestrator: React.FC = () => {
         </p>
       )}
 
-      <button
-        type="button"
-        className="primary-button mt-4"
-        style={{ width: '100%', padding: '15px', fontSize: '1.1em' }}
-        onClick={() => {
-          console.log("Final Setup Confirmed:", {
-            depositAmount: state.depositAmount,
-            tenancyStartDate: state.tenancyStartDate,
-            tenancyEnd: state.tenancyEnd,
-            paymentMode: state.paymentMode,
-            renterSignatories: state.renterSignatories,
-            landlordSignatories: state.landlordSignatories,
-            landlordInput: state.landlordInput,
-          });
-          alert("Overall Rent Deposit Setup Confirmed (stub for smart contract interaction).");
-        }}
-        disabled={
-          !state.api ||
-          !state.polkadotAccount ||
-          !state.depositAmount ||
-          parseFloat(state.depositAmount) <= 0 ||
-          !state.tenancyStartDate ||
-          !state.tenancyEnd ||
-          new Date(state.tenancyEnd) <= new Date(state.tenancyStartDate) ||
-          state.renterSignatories.length < 1 ||
-          state.landlordSignatories.length < 1
+      {/* Step 3: Deposit Release Form */}
+      <div style={{ margin: '30px 0', borderBottom: '1px solid #eee' }}></div>
+      <DepositReleaseForm
+        escrowId={escrowId}
+        signatories={allSignatories}
+        approvals={approvals}
+        onApprove={handleApprove}
+        onRelease={handleRelease}
+        isReleasable={isReleasable}
+        status={
+          isReleasable
+            ? "Ready to release deposit."
+            : `Waiting for ${Math.max(0, 4 - approvals.length)} more approval(s).`
         }
-      >
-        Finalize Deposit & Signatories
-      </button>
+      />
     </div>
   );
 };

@@ -17,23 +17,45 @@ export default function TransakDeposit({ amountGBP }) {
       `&hideMenu=true` +
       `&isFeeCalculationHidden=true` +
       `&themeColor=1a202c`;
-    window.open(transakUrl, '_blank', 'width=500,height=700');
+
+    const win = window.open(transakUrl, '_blank', 'width=500,height=700');
+    // Poll for error message in the new window (MVP approach)
+    const poll = setInterval(() => {
+      try {
+        if (win && win.closed) {
+          clearInterval(poll);
+        }
+        // This is a best-effort: in real prod, use Transak's widget event API
+        // Here, we just alert after 2 seconds for demo/test mode
+        setTimeout(() => {
+          alert("UltraRentz's payment gateway is in test mode. No real payments can be made until KYB is complete. If you see an 'API key not active' message, this is expected.");
+        }, 2000);
+        clearInterval(poll);
+      } catch (e) {
+        // Ignore cross-origin errors
+      }
+    }, 500);
   };
 
   return (
-    <button
-      onClick={openTransak}
-      style={{
-        background: '#1a202c',
-        color: '#fff',
-        padding: '12px 24px',
-        border: 'none',
-        borderRadius: '6px',
-        fontSize: '1rem',
-        cursor: 'pointer',
-      }}
-    >
-      Pay Deposit (£{amountGBP})
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+      <button
+        onClick={openTransak}
+        style={{
+          background: '#1a202c',
+          color: '#fff',
+          padding: '12px 24px',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: '1rem',
+          cursor: 'pointer',
+        }}
+      >
+        Pay Deposit (£{amountGBP})
+      </button>
+      <span style={{ color: '#b91c1c', fontSize: '0.95em', marginTop: 8 }}>
+        Test Mode: No real payments. If you see an API error, this is expected until KYB is complete.
+      </span>
+    </div>
   );
 }

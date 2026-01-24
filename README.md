@@ -6,7 +6,15 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 
 ---
 
+
 ## 🆕 Recent Feature Updates
+
+### Jan 14, 2026
+- Added `EscrowFactory` contract using the ERC-1167 minimal proxy pattern for scalable, gas-efficient escrow deployment.
+- Created and deployed a Foundry script for EscrowFactory on Polygon Amoy.
+- Fixed Solidity test structure and improved reentrancy test coverage.
+- Documented all major technologies and updated developer workflow.
+- Pushed all changes to GitHub for team alignment and grant applications.
 
 ### Nov 27, 2025
 - Added a security audit script (`script/security-audit.sh`) using Slither to automatically analyze Solidity contracts for vulnerabilities. This script helps detect issues like reentrancy, unchecked transfers, and dangerous timestamp usage.

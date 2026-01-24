@@ -20,9 +20,10 @@ contract EscrowDAOIntegrationTest is Test {
     uint256 public constant RENT_AMOUNT = 1000 ether;
 
     function setUp() public {
-        dao = new UltraRentzDAO();
-        escrow = new EscrowStateMachine(address(dao));
         urzToken = new TestStableToken();
+        dao = new UltraRentzDAO(address(this));
+        escrow = new EscrowStateMachine(address(this), address(dao), address(urzToken));
+        vm.prank(address(this));
         urzToken.mint(tenant, RENT_AMOUNT * 10);
     }
 

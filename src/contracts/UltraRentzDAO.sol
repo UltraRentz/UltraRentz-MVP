@@ -2,10 +2,11 @@
 pragma solidity ^0.8.20;
 
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
+import "openzeppelin-contracts/contracts/security/Pausable.sol";
 
 /// @title UltraRentzDAO
 /// @notice Simple DAO for dispute resolution in UltraRentz escrow
-contract UltraRentzDAO is Ownable {
+contract UltraRentzDAO is Ownable, Pausable {
     enum Decision { None, FullRelease, PartialRelease, NoRelease }
 
     struct Dispute {
@@ -25,9 +26,17 @@ contract UltraRentzDAO is Ownable {
     event DecisionMade(uint256 indexed escrowId, Decision decision, uint256 amountReleased);
     event AppealSubmitted(uint256 indexed escrowId);
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor(address initialOwner) Ownable(initialOwner) {
+        require(initialOwner != address(0), "DAO owner cannot be zero address");
+    }
 
-    function referDispute(uint256 escrowId, address tenant, address landlord, uint256 amount) external onlyOwner {
+    receive() external payable {
+        revert("UltraRentzDAO does not accept Ether");
+    }
+
+    function referDispute(uint256 escrowId, address tenant, address landlord, uint256 amount) external onlyOwner whenNotPaused {
+        require(tenant != address(0), "Tenant cannot be zero address");
+        require(landlord != address(0), "Landlord cannot be zero address");
         disputes[escrowId] = Dispute({
             escrowId: escrowId,
             tenant: tenant,
@@ -41,22 +50,30 @@ contract UltraRentzDAO is Ownable {
         emit DisputeReferred(escrowId, tenant, landlord);
     }
 
-    function decideDispute(uint256 escrowId, Decision decision, uint256 amountReleased) external onlyOwner {
+    function decideDispute(uint256 escrowId, Decision decision, uint256 amountReleased) external onlyOwner whenNotPaused {
         Dispute storage d = disputes[escrowId];
-        require(block.timestamp <= d.createdAt + RESOLUTION_WINDOW, "Resolution window expired");
-        require(!d.resolved, "Already resolved");
+        require(block.timestamp <= d.createdAt + RESOLUTION_WINDOW, "DAO: Resolution window expired");
+        require(!d.resolved, "DAO: Already resolved");
         d.decision = decision;
         d.resolved = true;
         emit DecisionMade(escrowId, decision, amountReleased);
     }
 
-    function submitAppeal(uint256 escrowId) external onlyOwner {
+    function submitAppeal(uint256 escrowId) external onlyOwner whenNotPaused {
         Dispute storage d = disputes[escrowId];
-        require(d.resolved, "Decision not made yet");
-        require(!d.appealed, "Already appealed");
+        require(d.resolved, "DAO: Decision not made yet");
+        require(!d.appealed, "DAO: Already appealed");
         d.appealed = true;
         d.resolved = false;
         d.createdAt = block.timestamp;
         emit AppealSubmitted(escrowId);
+    }
+
+    // --- Emergency Pause ---
+    function pause() external onlyOwner {
+        _pause();
+    }
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

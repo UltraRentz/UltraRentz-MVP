@@ -13,8 +13,9 @@ contract UltraRentzStakingTest is Test {
     uint256 public constant APY_BPS = 1000; // 10%
 
     function setUp() public {
-        urzToken = new UltraRentzStable();
-        staking = new UltraRentzStaking(address(urzToken), APY_BPS);
+        urzToken = new UltraRentzStable(address(this));
+        staking = new UltraRentzStaking(address(this), address(urzToken), APY_BPS);
+        vm.prank(address(this));
         urzToken.mint(user, STAKE_AMOUNT * 10);
         vm.prank(user);
         urzToken.approve(address(staking), STAKE_AMOUNT * 10);

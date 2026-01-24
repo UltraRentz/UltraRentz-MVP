@@ -3,10 +3,11 @@ pragma solidity ^0.8.20;
 
 import "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import "lib/openzeppelin-contracts/contracts/security/Pausable.sol";
 
 /// @title UltraRentz Stablecoin (URZ)
 /// @notice ERC20 stablecoin with extension points for DeFi features
-contract UltraRentzStable is ERC20, Ownable {
+contract UltraRentzStable is ERC20, Ownable, Pausable {
     // Stablecoin parameters
     uint8 private constant DECIMALS = 18;
     uint256 public constant INITIAL_SUPPLY = 1_000_000 * 10**DECIMALS;
@@ -20,48 +21,63 @@ contract UltraRentzStable is ERC20, Ownable {
     event Arbitrage(address indexed user, uint256 profit);
 
     constructor(address initialOwner) ERC20("UltraRentz Stable", "URZ") Ownable(initialOwner) {
+        require(initialOwner != address(0), "Stable: owner cannot be zero address");
         _mint(msg.sender, INITIAL_SUPPLY);
+    }
+
+    receive() external payable {
+        revert("UltraRentzStable does not accept Ether");
     }
 
     // --- Extension Points ---
     // These functions are stubs for future DeFi integrations
 
-    function swap(address tokenOut, uint256 amountIn) external returns (uint256 amountOut) {
+    function swap(address tokenOut, uint256 amountIn) external whenNotPaused returns (uint256 amountOut) {
         // Integrate with DEX (Uniswap/Sushiswap) here
-        revert("Swap not implemented");
+        revert("Stable: Swap not implemented");
     }
 
-    function addLiquidity(address otherToken, uint256 urzAmount, uint256 otherTokenAmount) external {
+    function addLiquidity(address otherToken, uint256 urzAmount, uint256 otherTokenAmount) external whenNotPaused {
         // Integrate with AMM pool here
-        revert("Add liquidity not implemented");
+        revert("Stable: Add liquidity not implemented");
     }
 
-    function removeLiquidity(address otherToken, uint256 lpTokens) external {
+    function removeLiquidity(address otherToken, uint256 lpTokens) external whenNotPaused {
         // Integrate with AMM pool here
-        revert("Remove liquidity not implemented");
+        revert("Stable: Remove liquidity not implemented");
     }
 
-    function yieldFarm(uint256 urzAmount) external returns (uint256 reward) {
+    function yieldFarm(uint256 urzAmount) external whenNotPaused returns (uint256 reward) {
         // Integrate with yield farming logic here
-        revert("Yield farming not implemented");
+        revert("Stable: Yield farming not implemented");
     }
 
-    function flashLoan(uint256 urzAmount) external {
+    function flashLoan(uint256 urzAmount) external whenNotPaused {
         // Integrate with flash loan logic here
-        revert("Flash loan not implemented");
+        revert("Stable: Flash loan not implemented");
     }
 
-    function arbitrage(address tokenA, address tokenB, uint256 amount) external returns (uint256 profit) {
+    function arbitrage(address tokenA, address tokenB, uint256 amount) external whenNotPaused returns (uint256 profit) {
         // Integrate with arbitrage logic here
-        revert("Arbitrage not implemented");
+        revert("Stable: Arbitrage not implemented");
     }
 
     // --- Minting and Burning ---
-    function mint(address to, uint256 amount) public onlyOwner {
+    function mint(address to, uint256 amount) public onlyOwner whenNotPaused {
+        require(to != address(0), "Stable: cannot mint to zero address");
         _mint(to, amount);
     }
 
-    function burn(address from, uint256 amount) public onlyOwner {
+    function burn(address from, uint256 amount) public onlyOwner whenNotPaused {
+        require(from != address(0), "Stable: cannot burn from zero address");
         _burn(from, amount);
+    }
+
+    // --- Emergency Pause ---
+    function pause() external onlyOwner {
+        _pause();
+    }
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }

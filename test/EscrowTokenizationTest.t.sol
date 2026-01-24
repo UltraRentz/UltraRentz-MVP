@@ -15,8 +15,9 @@ contract EscrowTokenizationTest is Test {
     uint256 public constant RENT_AMOUNT = 1000 ether;
 
     function setUp() public {
-        urzToken = new UltraRentzStable();
-        escrow = new EscrowStateMachine(daoAdmin, address(urzToken));
+        urzToken = new UltraRentzStable(daoAdmin);
+        escrow = new EscrowStateMachine(daoAdmin, daoAdmin, address(urzToken));
+        vm.prank(daoAdmin);
         urzToken.mint(tenant, RENT_AMOUNT * 10); // Pre-mint for testing
     }
 
