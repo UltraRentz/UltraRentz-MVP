@@ -22,6 +22,8 @@ const POPULAR_TOKENS = [
   { symbol: 'SAND', name: 'The Sandbox', address: '0x3845badade8e6dff049820680d1f14bd3903a5d0', decimals: 18 },
 ];
 import { useState, useCallback } from "react";
+import { formatDateUK } from '../utils/formatDate';
+import { UKDatePicker } from './UKDatePicker';
 import HelpFAQModal from "./HelpFAQModal";
 import TransakDeposit from "./TransakDeposit";
 import { ethers } from "ethers";
@@ -29,10 +31,10 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { sendDepositNotification } from "../utils/emailNotification";
 
 // --- Contract Constants (Polygon Mumbai) ---
-const URZ_CONTRACT_ADDRESS = "0x19f8a847Fca917363a5f1Cb23c9A8829DBa38989";
+
 const ESCROW_CONTRACT_ADDRESS = "0x3B8e4cD1Ce9369C146a9EDb96948562662C7820E";
 
-const URZ_CONTRACT_ABI = [
+const ERC20_ABI = [
   "function approve(address spender, uint256 value) returns (bool)"
 ];
 
@@ -41,7 +43,7 @@ const ESCROW_ABI = [
   "function fundEscrow(uint256 escrowId) external"
 ];
 
-const URZ_DECIMALS = 18;
+
 
 const POPULAR_FIATS = [
   { code: 'USD', label: 'US Dollar ($)' },
@@ -95,20 +97,24 @@ export default function DepositForm(props: any) {
   const embeddedWallet = wallets.find((w) => w.walletClientType === "embedded");
   const externalWallet = wallets.find((w) => w.walletClientType !== "embedded");
 
-  const [tenantSig1, setTenantSig1] = useState("");
-  const [tenantSig2, setTenantSig2] = useState("");
-  const [tenantSig3, setTenantSig3] = useState("");
-  const [landlordSig1, setLandlordSig1] = useState("");
-  const [landlordSig2, setLandlordSig2] = useState("");
-  const [landlordSig3, setLandlordSig3] = useState("");
+  const [tenantSignatories, setTenantSignatories] = useState<string[]>([""]);
+  const [landlordSignatories, setLandlordSignatories] = useState<string[]>([""]);
+  const [activeTab, setActiveTab] = useState<'tenant' | 'landlord'>('tenant');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Input validation state
   const [inputErrors, setInputErrors] = useState<{[key: string]: string}>({});
 
   // Validation helpers
-  const validateAddress = (addr: string) =>
-    addr && ethers.isAddress(addr) ? "" : "Invalid Ethereum address";
+  // Accepts either a valid Ethereum address or a valid email
+  const validateSignatory = (input: string) => {
+    if (!input) return "Required";
+    // Simple email regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (ethers.isAddress(input)) return "";
+    if (emailRegex.test(input)) return "";
+    return "Must be a valid wallet address or email";
+  };
   const validateAmount = (amt: string) => {
     if (!amt || isNaN(Number(amt))) return "Enter a valid deposit amount";
     const num = Number(amt);
@@ -117,15 +123,12 @@ export default function DepositForm(props: any) {
   };
 
   // Check if all fields are valid
+  const allTenantValid = tenantSignatories.every(s => !validateSignatory(s));
+  const allLandlordValid = landlordSignatories.every(s => !validateSignatory(s));
   const allValid =
     !validateAmount(depositAmount) &&
-    !validateAddress(landlordInput) &&
-    !validateAddress(tenantSig1) &&
-    !validateAddress(tenantSig2) &&
-    !validateAddress(tenantSig3) &&
-    !validateAddress(landlordSig1) &&
-    !validateAddress(landlordSig2) &&
-    !validateAddress(landlordSig3) &&
+    allTenantValid &&
+    allLandlordValid &&
     tenancyStartDate &&
     tenancyEnd;
 
@@ -145,38 +148,43 @@ export default function DepositForm(props: any) {
 
       const signer = await walletToUse.getEthersSigner();
 
-      if (!ethers.isAddress(landlordInput)) {
-        return setPaymentStatus("❌ Invalid landlord wallet address.");
-      }
-
+      // Accept both wallet and email for signatories, but contract only accepts wallets
+      // For MVP: filter to wallet addresses for contract, but store emails for notifications
       const signatories = [
-        tenantSig1, tenantSig2, tenantSig3,
-        landlordSig1, landlordSig2, landlordSig3
+        ...tenantSignatories,
+        ...landlordSignatories
       ];
-
-      if (!signatories.every(ethers.isAddress)) {
-        return setPaymentStatus("❌ One or more signatory addresses are invalid.");
+      // Pad to 6 for contract
+      while (signatories.length < 6) signatories.push("");
+      const walletSignatories = signatories.map(s => ethers.isAddress(s) ? s : ethers.ZeroAddress);
+      if (walletSignatories.filter(addr => addr !== ethers.ZeroAddress).length < 1) {
+        return setPaymentStatus("❌ At least one signatory must be a wallet address.");
       }
 
-      const amountWei = ethers.parseUnits(depositAmount, URZ_DECIMALS);
+      // Find selected token info
+      const selectedToken = POPULAR_TOKENS.find(t => t.symbol === tokenSymbol) || POPULAR_TOKENS[0];
+      const tokenAddress = selectedToken.address;
+      const tokenDecimals = selectedToken.decimals;
+
+      const amountWei = ethers.parseUnits(depositAmount, tokenDecimals);
       const start = Math.floor(new Date(tenancyStartDate).getTime() / 1000);
       const end = Math.floor(new Date(tenancyEnd).getTime() / 1000);
 
-      const urz = new ethers.Contract(URZ_CONTRACT_ADDRESS, URZ_CONTRACT_ABI, signer);
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
       const escrow = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
-      setPaymentStatus("⏳ Approving escrow to transfer URZ...");
-      let tx = await urz.approve(ESCROW_CONTRACT_ADDRESS, amountWei);
+      setPaymentStatus(`⏳ Approving escrow to transfer ${tokenSymbol}...`);
+      let tx = await tokenContract.approve(ESCROW_CONTRACT_ADDRESS, amountWei);
       await tx.wait();
 
       setPaymentStatus("⏳ Creating escrow agreement...");
       tx = await escrow.createEscrow(
-        landlordInput.trim(),
+        ethers.isAddress(landlordInput) ? landlordInput.trim() : ethers.ZeroAddress,
         amountWei,
-        URZ_CONTRACT_ADDRESS,
+        tokenAddress,
         start,
         end,
-        signatories
+        walletSignatories
       );
       const receipt = await tx.wait();
       const escrowId = receipt?.logs?.[0]?.args?.[0]?.toString() ?? "0";
@@ -188,11 +196,12 @@ export default function DepositForm(props: any) {
       setPaymentStatus(`✅ Rent deposit successfully locked in escrow! Escrow ID: ${escrowId}`);
       setPaymentTxHash(tx.hash);
 
-      // Simulate notification to both parties (replace with real emails in production)
+      // Simulate notification to both parties and all signatories (replace with real emails in production)
       const renterEmail = props.renterEmail || "renter@example.com";
       const landlordEmail = props.landlordEmail || "landlord@example.com";
-      await sendDepositNotification(renterEmail, landlordEmail, escrowId, depositAmount);
-      setPaymentStatus(`✅ Rent deposit locked and notifications sent to renter and landlord! Escrow ID: ${escrowId}`);
+      const signatoryEmails = signatories.filter(s => !ethers.isAddress(s));
+      await sendDepositNotification(renterEmail, landlordEmail, escrowId, depositAmount, signatoryEmails);
+      setPaymentStatus(`✅ Rent deposit locked and notifications sent to renter, landlord, and signatories! Escrow ID: ${escrowId}`);
     } catch (err: any) {
       setPaymentStatus("❌ " + (err.message || "Transaction failed"));
     }
@@ -201,10 +210,10 @@ export default function DepositForm(props: any) {
   }, [
     embeddedWallet, externalWallet,
     depositAmount, tenancyStartDate, tenancyEnd,
-    landlordInput, tenantSig1, tenantSig2, tenantSig3,
-    landlordSig1, landlordSig2, landlordSig3,
+    landlordInput, tenantSignatories, landlordSignatories,
     setPaymentTxHash, 
-    paymentTxHash
+    paymentTxHash,
+    tokenSymbol
   ]);
 
   const [showHelp, setShowHelp] = useState(false);
@@ -330,153 +339,113 @@ export default function DepositForm(props: any) {
 
         <div className="flex gap-4 mb-4">
           <div className="flex-1">
-            <label className="block font-semibold mb-1 flex items-center gap-1">
-              Tenancy Start
-              <span title="The date your rental agreement begins." className="text-indigo-500 cursor-pointer">ℹ️</span>
-            </label>
-            <input
-              type="date"
-              className={inputStyle}
+            <UKDatePicker
               value={tenancyStartDate}
-              title="Select the date your rental agreement begins."
-              onChange={e => setTenancyStartDate(e.target.value)}
+              onChange={setTenancyStartDate}
+              label={
+                <span>
+                  Tenancy Start
+                  <span title="The date your rental agreement begins." className="text-indigo-500 cursor-pointer ml-1">ℹ️</span>
+                </span>
+              }
             />
           </div>
           <div className="flex-1">
-            <label className="block font-semibold mb-1 flex items-center gap-1">
-              Tenancy End
-              <span title="The date your rental agreement ends." className="text-indigo-500 cursor-pointer">ℹ️</span>
-            </label>
-            <input
-              type="date"
-              className={inputStyle}
+            <UKDatePicker
               value={tenancyEnd}
-              title="Select the date your rental agreement ends."
-              onChange={e => setTenancyEnd(e.target.value)}
+              onChange={setTenancyEnd}
+              label={
+                <span>
+                  Tenancy End
+                  <span title="The date your rental agreement ends." className="text-indigo-500 cursor-pointer ml-1">ℹ️</span>
+                </span>
+              }
             />
           </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block font-semibold mb-1 flex items-center gap-1">
-            Landlord Wallet
-            <span title="The Ethereum wallet address of the landlord. This is where the deposit will be released after tenancy ends." className="text-indigo-500 cursor-pointer">ℹ️</span>
-          </label>
-          <input
-            className={inputStyle('landlordInput')}
-            placeholder="0x..."
-            value={landlordInput}
-            title="Enter the Ethereum wallet address of the landlord."
-            onChange={e => {
-              setLandlordInput(e.target.value);
-              setInputErrors(errors => ({
-                ...errors,
-                landlordInput: validateAddress(e.target.value)
-              }));
-            }}
-          />
-          {inputErrors.landlordInput && <span className="text-xs text-red-500">{inputErrors.landlordInput}</span>}
-        </div>
-
-
-        {/* Grouped Signatory Inputs: Side-by-side cards for Tenant and Landlord */}
-        <div className="mb-4 flex flex-col md:flex-row gap-4">
-          <div className="flex-1 bg-gray-50 dark:bg-gray-900 rounded-lg p-4 shadow">
-            <h3 className="font-semibold mb-2 flex items-center gap-1 text-indigo-700 dark:text-indigo-300">
-              Tenant Signatories (3)
-              <span title="Three tenant addresses who must approve deposit release at the end of tenancy." className="text-indigo-500 cursor-pointer">ℹ️</span>
-            </h3>
-            <input
-              className={inputStyle('tenantSig1')}
-              placeholder="Tenant Address #1"
-              value={tenantSig1}
-              title="First tenant signatory address. Must be a valid Ethereum address."
-              onChange={e => {
-                setTenantSig1(e.target.value);
-                setInputErrors(errors => ({
-                  ...errors,
-                  tenantSig1: validateAddress(e.target.value)
-                }));
-              }}
-            />
-            {inputErrors.tenantSig1 && <span className="text-xs text-red-500">{inputErrors.tenantSig1}</span>}
-            <input
-              className={inputStyle('tenantSig2')}
-              placeholder="Tenant Address #2"
-              value={tenantSig2}
-              title="Second tenant signatory address. Must be a valid Ethereum address."
-              onChange={e => {
-                setTenantSig2(e.target.value);
-                setInputErrors(errors => ({
-                  ...errors,
-                  tenantSig2: validateAddress(e.target.value)
-                }));
-              }}
-            />
-            {inputErrors.tenantSig2 && <span className="text-xs text-red-500">{inputErrors.tenantSig2}</span>}
-            <input
-              className={inputStyle('tenantSig3')}
-              placeholder="Tenant Address #3"
-              value={tenantSig3}
-              title="Third tenant signatory address. Must be a valid Ethereum address."
-              onChange={e => {
-                setTenantSig3(e.target.value);
-                setInputErrors(errors => ({
-                  ...errors,
-                  tenantSig3: validateAddress(e.target.value)
-                }));
-              }}
-            />
-            {inputErrors.tenantSig3 && <span className="text-xs text-red-500">{inputErrors.tenantSig3}</span>}
+        <div className="mb-4 bg-gray-50 dark:bg-gray-900 rounded-lg p-4 shadow">
+          <div className="flex mb-4">
+            <button
+              className={`flex-1 py-2 rounded-l-lg font-bold ${activeTab === 'tenant' ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-indigo-700'}`}
+              onClick={() => setActiveTab('tenant')}
+              type="button"
+            >
+              Tenant
+            </button>
+            <button
+              className={`flex-1 py-2 rounded-r-lg font-bold ${activeTab === 'landlord' ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-green-700'}`}
+              onClick={() => setActiveTab('landlord')}
+              type="button"
+            >
+              Landlord
+            </button>
           </div>
-          <div className="flex-1 bg-gray-50 dark:bg-gray-900 rounded-lg p-4 shadow">
-            <h3 className="font-semibold mb-2 flex items-center gap-1 text-green-700 dark:text-green-300">
-              Landlord Signatories (3)
-              <span title="Three landlord addresses who must approve deposit release at the end of tenancy." className="text-indigo-500 cursor-pointer">ℹ️</span>
-            </h3>
-            <input
-              className={inputStyle('landlordSig1')}
-              placeholder="Landlord Address #1"
-              value={landlordSig1}
-              title="First landlord signatory address. Must be a valid Ethereum address."
-              onChange={e => {
-                setLandlordSig1(e.target.value);
-                setInputErrors(errors => ({
-                  ...errors,
-                  landlordSig1: validateAddress(e.target.value)
-                }));
+          <h3 className="font-semibold mb-2 flex items-center gap-1">
+            {activeTab === 'tenant' ? 'Tenant Signatories' : 'Landlord Signatories'} (Wallet or Email)
+            <span title="Add up to 3 signatories (wallet addresses or emails) who must approve deposit release or receive notifications." className="text-indigo-500 cursor-pointer">ℹ️</span>
+          </h3>
+          {(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).map((sig, idx) => (
+            <div key={idx} className="flex items-center gap-2 mb-2">
+              <input
+                className={inputStyle(`${activeTab}-sig-${idx}`)}
+                placeholder={`Signatory #${idx + 1} (wallet or email)`}
+                value={sig}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (activeTab === 'tenant') {
+                    const arr = [...tenantSignatories];
+                    arr[idx] = val;
+                    setTenantSignatories(arr);
+                  } else {
+                    const arr = [...landlordSignatories];
+                    arr[idx] = val;
+                    setLandlordSignatories(arr);
+                  }
+                  setInputErrors(errors => ({ ...errors, [`${activeTab}-sig-${idx}`]: validateSignatory(val) }));
+                }}
+              />
+              <button
+                type="button"
+                className="px-2 py-1 rounded font-bold border-2 border-red-600 bg-red-100 dark:bg-red-700 text-red-700 dark:text-white text-sm shadow hover:bg-red-200 dark:hover:bg-red-600 transition"
+                onClick={() => {
+                  if (activeTab === 'tenant') {
+                    const arr = [...tenantSignatories];
+                    arr.splice(idx, 1);
+                    setTenantSignatories(arr.length ? arr : [""]);
+                  } else {
+                    const arr = [...landlordSignatories];
+                    arr.splice(idx, 1);
+                    setLandlordSignatories(arr.length ? arr : [""]);
+                  }
+                }}
+                disabled={(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).length === 1}
+                title="Remove signatory"
+              >
+                Remove
+              </button>
+              <button
+                type="button"
+                className="px-2 py-1 rounded font-bold border-2 border-blue-600 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-white text-sm shadow hover:bg-blue-200 dark:hover:bg-blue-600 transition"
+                onClick={() => alert(validateSignatory(sig) ? 'Invalid signatory' : 'Signatory valid!')}
+                title="Verify signatory"
+              >
+                Verify
+              </button>
+            </div>
+          ))}
+          {(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).length < 3 && (
+            <button
+              type="button"
+              className="mt-2 px-3 py-1 rounded bg-indigo-500 text-white font-semibold"
+              onClick={() => {
+                if (activeTab === 'tenant') setTenantSignatories([...tenantSignatories, ""]);
+                else setLandlordSignatories([...landlordSignatories, ""]);
               }}
-            />
-            {inputErrors.landlordSig1 && <span className="text-xs text-red-500">{inputErrors.landlordSig1}</span>}
-            <input
-              className={inputStyle('landlordSig2')}
-              placeholder="Landlord Address #2"
-              value={landlordSig2}
-              title="Second landlord signatory address. Must be a valid Ethereum address."
-              onChange={e => {
-                setLandlordSig2(e.target.value);
-                setInputErrors(errors => ({
-                  ...errors,
-                  landlordSig2: validateAddress(e.target.value)
-                }));
-              }}
-            />
-            {inputErrors.landlordSig2 && <span className="text-xs text-red-500">{inputErrors.landlordSig2}</span>}
-            <input
-              className={inputStyle('landlordSig3')}
-              placeholder="Landlord Address #3"
-              value={landlordSig3}
-              title="Third landlord signatory address. Must be a valid Ethereum address."
-              onChange={e => {
-                setLandlordSig3(e.target.value);
-                setInputErrors(errors => ({
-                  ...errors,
-                  landlordSig3: validateAddress(e.target.value)
-                }));
-              }}
-            />
-            {inputErrors.landlordSig3 && <span className="text-xs text-red-500">{inputErrors.landlordSig3}</span>}
-          </div>
+            >
+              Add Signatory
+            </button>
+          )}
         </div>
 
 

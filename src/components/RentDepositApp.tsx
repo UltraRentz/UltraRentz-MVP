@@ -1,7 +1,7 @@
 // src/components/RentDepositApp.tsx
 import { useState, useCallback, useEffect } from 'react';
+import { formatDateUK } from '../utils/formatDate';
 import DepositForm from './DepositForm';
-import SignatoryForm from './SignatoryForm';
 import WalkthroughModal from './WalkthroughModal';
 import { ethers } from "ethers";
 
@@ -14,7 +14,7 @@ declare global {
 
 const getTodayDate = () => {
   const today = new Date();
-  return today.toISOString().split('T')[0];
+  return today.toISOString().split('T')[0]; // Keep as ISO for input fields
 };
 
 const calculateTenancyEndDate = (startDate: string, durationMonths: number): string => {
@@ -25,7 +25,7 @@ const calculateTenancyEndDate = (startDate: string, durationMonths: number): str
   if (end.getDate() !== start.getDate()) {
     end.setDate(0);
   }
-  return end.toISOString().split('T')[0];
+  return end.toISOString().split('T')[0]; // Keep as ISO for input fields
 };
 
 interface RentDepositState {
@@ -34,8 +34,6 @@ interface RentDepositState {
   tenancyDurationMonths: string;
   tenancyEnd: string;
   paymentMode: 'fiat' | 'token';
-  renterSignatories: string[];
-  landlordSignatories: string[];
   landlordInput: string;
   ethereumProvider: ethers.BrowserProvider | null;
   ethereumSigner: ethers.Signer | null;
@@ -61,8 +59,7 @@ const RentDepositApp: React.FC = () => {
     tenancyDurationMonths: initialDurationMonths,
     tenancyEnd: initialEndDate,
     paymentMode: 'token',
-    renterSignatories: [],
-    landlordSignatories: [],
+    // signatories now managed in DepositForm
     landlordInput: '',
     ethereumProvider: null,
     ethereumSigner: null,
@@ -120,11 +117,7 @@ const RentDepositApp: React.FC = () => {
     }
   }, [updateState]);
 
-  const setRenterSignatories = useCallback((sigs: string[]) => updateState({ renterSignatories: sigs }), [updateState]);
-  const setLandlordSignatories = useCallback((sigs: string[]) => updateState({ landlordSignatories: sigs }), [updateState]);
-
   const isPaymentConfirmed = state.paymentStatus?.includes("✅") || state.paymentStatus?.includes("🎉");
-  const areAllSignatoriesAdded = state.renterSignatories.length > 0 && state.landlordSignatories.length > 0;
 
   return (
 
@@ -216,40 +209,12 @@ const RentDepositApp: React.FC = () => {
         darkMode={darkMode}
 
         polkadotAccount={null}  // <-- Added to fix build error
+        // Add formatted dates for display
+        formattedStartDate={formatDateUK(state.tenancyStartDate)}
+        formattedEndDate={formatDateUK(state.tenancyEnd)}
       />
 
-      <SignatoryForm
-        type="Renter"
-        signatories={state.renterSignatories}
-        setSignatories={setRenterSignatories}
-        input={''}
-        setInput={() => {}}
-      />
 
-      <SignatoryForm
-        type="Landlord"
-        signatories={state.landlordSignatories}
-        setSignatories={setLandlordSignatories}
-        input={''}
-        setInput={() => {}}
-      />
-
-      <button
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg"
-        disabled={
-          !isPaymentConfirmed ||
-          !areAllSignatoriesAdded ||
-          !state.ethereumAccount ||
-          !state.depositAmount ||
-          parseFloat(state.depositAmount) <= 0 ||
-          !state.tenancyStartDate ||
-          !state.tenancyEnd ||
-          new Date(state.tenancyEnd) <= new Date(state.tenancyStartDate)
-        }
-        onClick={() => alert("Overall Rent Deposit Setup Confirmed.")}
-      >
-        Finalize Deposit & Signatories
-      </button>
 
       <div className="border-t pt-6">
         <h2 className="text-xl font-semibold">Step 3: Deposit Release (Coming Soon)</h2>

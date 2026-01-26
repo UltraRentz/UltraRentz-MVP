@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import RentDepositApp from "./components/RentDepositApp";
 import DashboardLayout from "./components/DashboardLayout";
-import "./styles.css"; // Your existing custom styles
+import Yield from "./components/Yield";
+import "./styles.css";
 
 export default function App() {
   const [theme, setTheme] = useState("dark");
@@ -11,17 +13,19 @@ export default function App() {
   }, [theme]);
 
   return (
-    <DashboardLayout>
-      <section id="deposit">
+    <Router>
+      <DashboardLayout>
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="theme-toggle mb-4"
         >
           {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
         </button>
-        {/* Deposit Flow: RentDepositApp orchestrates deposit process */}
-        <RentDepositApp />
-      </section>
-    </DashboardLayout>
+        <Routes>
+          <Route path="/" element={<RentDepositApp />} />
+          <Route path="/yield" element={<Yield />} />
+        </Routes>
+      </DashboardLayout>
+    </Router>
   );
 }
