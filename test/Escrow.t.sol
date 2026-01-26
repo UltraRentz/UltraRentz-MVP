@@ -87,6 +87,67 @@ contract EscrowTest is Test {
 
         vm.stopPrank();
     }
+
+    // =========================================================================
+    // V. TRANSFER DEPOSIT FEATURE TESTS
+    // =========================================================================
+
+    function testTransferDeposit_Bank() public {
+        uint256 depositAmount = 100 ether;
+        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
+
+        // Only tenant or landlord can call
+        vm.prank(tenant);
+        vm.expectEmit(true, true, false, true);
+        emit Escrow.DepositTransferred(depositId, Escrow.DestinationType.Bank, address(0), "BANK-XYZ-123", depositAmount);
+        escrow.transferDeposit(depositId, Escrow.DestinationType.Bank, address(0), "BANK-XYZ-123", depositAmount);
+
+        // Deposit should be marked as released
+        (,,,, Escrow.DepositStatus status,,) = escrow.getDepositBasic(depositId);
+        assertEq(uint8(status), uint8(Escrow.DepositStatus.Released), "Status must be Released");
+    }
+
+    function testTransferDeposit_Contract() public {
+        uint256 depositAmount = 100 ether;
+        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
+        address contractDest = makeAddr("contractDest");
+
+        uint256 initialBalance = mockToken.balanceOf(contractDest);
+
+        vm.prank(landlord);
+        vm.expectEmit(true, true, false, true);
+        emit Escrow.DepositTransferred(depositId, Escrow.DestinationType.Contract, contractDest, "", depositAmount);
+        escrow.transferDeposit(depositId, Escrow.DestinationType.Contract, contractDest, "", depositAmount);
+
+        // Tokens should be transferred
+        assertEq(mockToken.balanceOf(contractDest), initialBalance + depositAmount, "Tokens must be transferred to contract");
+    }
+
+    function testTransferDeposit_Scheme() public {
+        uint256 depositAmount = 100 ether;
+        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
+        address schemeDest = makeAddr("schemeDest");
+
+        uint256 initialBalance = mockToken.balanceOf(schemeDest);
+
+        vm.prank(tenant);
+        vm.expectEmit(true, true, false, true);
+        emit Escrow.DepositTransferred(depositId, Escrow.DestinationType.Scheme, schemeDest, "", depositAmount);
+        escrow.transferDeposit(depositId, Escrow.DestinationType.Scheme, schemeDest, "", depositAmount);
+
+        // Tokens should be transferred
+        assertEq(mockToken.balanceOf(schemeDest), initialBalance + depositAmount, "Tokens must be transferred to scheme");
+    }
+
+    function testTransferDeposit_OnlyTenantOrLandlord() public {
+        uint256 depositAmount = 100 ether;
+        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
+        address attacker = makeAddr("attacker");
+
+        vm.prank(attacker);
+        vm.expectRevert("Only tenant/landlord");
+        escrow.transferDeposit(depositId, Escrow.DestinationType.Scheme, attacker, "", depositAmount);
+    }
     
     // Helper to fetch deposit amount
     function _getDepositAmount(uint256 depositId) internal view returns (uint256 amount) {

@@ -10,6 +10,8 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 contract Escrow is Ownable, ReentrancyGuard {
     uint256 public depositCounter;
     address public dao;
+    // --- Destination Types for Deposit Transfer ---
+    enum DestinationType { Bank, Contract, Scheme }
     
     // CONSTANT: 7 days grace period for the Landlord to respond to a full refund request
     uint256 public constant DEADLINE_DURATION = 7 days; 
@@ -63,6 +65,42 @@ contract Escrow is Ownable, ReentrancyGuard {
     event PartialReleaseProposed(uint256 indexed id, address indexed signatory, uint256 tenantAmount, uint256 landlordAmount);
     event PartialReleaseExecutedByQuorum(uint256 indexed id, uint256 tenantAmount, uint256 landlordAmount);
     event EscalatedToMultisig(uint256 indexed id, address indexed by); // NEW EVENT
+
+    // New event for off-chain (bank) or scheme transfers
+    event DepositTransferred(uint256 indexed id, DestinationType destinationType, address destination, string bankDetails, uint256 amount);
+    /// @notice Transfer deposit to a bank account (off-chain), smart contract, or deposit scheme
+    /// @param depositId The deposit to transfer
+    /// @param destinationType 0=Bank, 1=Contract, 2=Scheme
+    /// @param destination The address of the contract/scheme (ignored for bank)
+    /// @param bankDetails Off-chain bank info (only for bank transfers)
+    /// @param amount Amount to transfer (must be <= deposit amount)
+    function transferDeposit(
+        uint256 depositId,
+        DestinationType destinationType,
+        address destination,
+        string calldata bankDetails,
+        uint256 amount
+    ) external nonReentrant {
+        Deposit storage d = deposits[depositId];
+        require(msg.sender == d.tenant || msg.sender == d.landlord, "Only tenant/landlord");
+        require(d.status != DepositStatus.Released, "Already released");
+        require(amount > 0 && amount <= d.amount, "Invalid amount");
+
+        d.amount -= amount;
+        if (d.amount == 0) {
+            d.status = DepositStatus.Released;
+        }
+
+        if (destinationType == DestinationType.Bank) {
+            // Off-chain: emit event for backend to process bank transfer
+            emit DepositTransferred(depositId, destinationType, address(0), bankDetails, amount);
+        } else {
+            // On-chain: transfer to contract or scheme address
+            require(destination != address(0), "Invalid destination");
+            _safeTransfer(d.token, destination, amount, depositId, false);
+            emit DepositTransferred(depositId, destinationType, destination, "", amount);
+        }
+    }
 
     // ---------- CONSTRUCTOR ----------
     constructor(address initialOwner) Ownable(initialOwner) {}

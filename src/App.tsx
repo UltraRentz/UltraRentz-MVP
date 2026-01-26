@@ -20,8 +20,8 @@ export default function App() {
         {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
       </button>
       
-      {/* RentDepositApp will now act as the orchestrator for your DApp */}
-      <RentDepositApp />
+      {/* RentDepositApp temporarily commented out for troubleshooting app hang */}
+      <div style={{padding: '2rem', textAlign: 'center', color: 'gray'}}>App loads! Uncomment RentDepositApp to debug further.</div>
     </div>
   );
 }
