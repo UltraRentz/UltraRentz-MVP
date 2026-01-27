@@ -101,6 +101,12 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
     setPendingVerifications((prev) => ({ ...prev, [trimmedInput]: true }));
     try {
       await sendVerificationEmail(trimmedInput);
+      // Save onboarding progress for resume reminder
+      fetch('/api/save-onboarding-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedInput, lastStep: 'email_verified' })
+      }).catch(() => {});
       setErrorMessage(`Verification email sent to ${trimmedInput}. Please check your inbox and click the link.`);
       setCurrentSignatoryInput('');
       // Simulate user clicking verification link (MVP)

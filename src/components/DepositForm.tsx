@@ -140,18 +140,18 @@ export default function DepositForm(props: any) {
       darkMode ? "bg-black text-white border-white" : "bg-white text-black border-black"
     } ${inputErrors[field] ? 'border-red-500 ring-2 ring-red-300' : ''}`;
 
-  // Onboard email signatories to ERC-4337
+  // Onboard email signatories to Secure Digital Vault
   const onboardEmailSignatories = async (signatories: string[]) => {
     const provider = window.ethereum ? new ethers.BrowserProvider(window.ethereum) : null;
     if (!provider) return {};
     const mapping: {[email: string]: string} = {};
     for (const s of signatories) {
-      // If it's an email, create a 4337 account
+      // If it's an email, create a Secure Digital Vault account
       if (!ethers.isAddress(s) && s.includes('@')) {
         // For demo: generate a random wallet (in production, use a secure deterministic or backend-managed key)
         const wallet = ethers.Wallet.createRandom();
         const account = await create4337Account(provider, wallet);
-        mapping[s] = await account.getAddress();
+        mapping[s] = await account.getAddress(); // Digital Vault address
       }
     }
     setEmailSignatoryAccounts(prev => ({...prev, ...mapping}));
@@ -175,7 +175,7 @@ export default function DepositForm(props: any) {
         ...tenantSignatories,
         ...landlordSignatories
       ];
-      // Onboard email signatories to ERC-4337 and get their smart account addresses
+      // Onboard email signatories to Secure Digital Vault and get their Digital Vault addresses
       const emailToAccount = await onboardEmailSignatories(signatories);
       // Pad to 6 for contract
       while (signatories.length < 6) signatories.push("");

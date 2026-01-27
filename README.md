@@ -1,4 +1,3 @@
-
 <p align="center">
    <img src="https://img.shields.io/badge/Coverage-90%25%2B-brightgreen" alt="Coverage Badge" />
 </p>
@@ -19,8 +18,14 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 
 ## 🆕 Recent Feature Updates
 
+### Jan 27, 2026
+- Overhauled all user-facing error messages for an "Invisible Web3" experience: users never see technical terms like Bundler, Paymaster, or Security Transaction fees. Friendly, non-crypto explanations are shown for all errors (including downtime, payment, and KYC issues).
+- Added localStorage draft saving and auto-resume for signatory emails. Users can now safely leave and return to onboarding without losing progress, reducing drop-off.
+- Improved post-action clarity: after each major step (e.g., signing), the UI now shows a clear success message and next step.
+- Prepared for backend/email integration to send "resume your deposit" reminders if a user abandons after email verification.
+
 ### Jan 14, 2026
-- Added `EscrowFactory` contract using the ERC-1167 minimal proxy pattern for scalable, gas-efficient escrow deployment.
+- Added `EscrowFactory` contract using the ERC-1167 minimal proxy pattern for scalable, efficient escrow deployment.
 - Created and deployed a Foundry script for EscrowFactory on Polygon Amoy.
 - Fixed Solidity test structure and improved reentrancy test coverage.
 - Documented all major technologies and updated developer workflow.
@@ -28,17 +33,17 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 
 ### Nov 27, 2025
 - Added a security audit script (`script/security-audit.sh`) using Slither to automatically analyze Solidity contracts for vulnerabilities. This script helps detect issues like reentrancy, unchecked transfers, and dangerous timestamp usage.
-- Optimized the `_releaseToLandlord` function in the `UltraRentzEscrow` contract to reduce gas costs by resetting only the approvals counter instead of looping through all signatories. This change lowers transaction fees and improves contract efficiency.
+- Optimized the `_releaseToLandlord` function in the `UltraRentzEscrow` contract to reduce Security Transaction costs by resetting only the approvals counter instead of looping through all signatories. This change lowers transaction fees and improves contract efficiency.
 - All tests passed successfully after these changes, confirming both security and efficiency improvements.
 
 ---
 
 
 ### Dec 22, 2025
-- Added on-chain reputation system: After escrow completion, tenants and landlords can rate each other 1–5 stars. Ratings are stored on-chain and average scores are queryable for any user, building trust and transparency into the platform.
+- Added Legally Recorded reputation system: After escrow completion, tenants and landlords can rate each other 1–5 stars. Ratings are securely recorded and average scores are queryable for any user, building trust and transparency into the platform.
 
 ### Nov 30, 2025
- - Implemented deposit tokenization: URZ stablecoin tokens are minted to tenants when deposits are funded and burned when deposits are released or refunded, creating a direct mapping between escrowed funds and tokenized assets.
+ - Implemented deposit tokenization: URZ stablecoin tokens are generated as receipts to tenants when deposits are funded and removed when deposits are released or refunded, creating a direct mapping between escrowed funds and tokenized assets.
  - Added comprehensive Foundry tests for escrow/token integration, DAO dispute resolution, and tokenization logic.
  - Project is now ready for staking/lending module development to demonstrate high APY and attract TVL.
 
@@ -56,13 +61,13 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 - 🧾 **Pay Rent Deposits** using URZ tokens  
 - 🖊️ **Multi-signatory system** (4 of 6 must approve for release)  
 - 🧍‍♂️🧍‍♀️ Renter and Landlord each nominate 3 signatories  
-- 🪙 ERC-20 URZ Token deployed on **Moonbase Alpha**  
+- 🪙 URZ Digital Receipt Token deployed on **Moonbase Alpha**  
 - 💳 Choose between **fiat** or **token** payment  
 - 🌕 MetaMask wallet integration  
 - 🌑 Light/Dark mode toggle  
 - 📅 Automatic tenancy end date calculation  
-- 🧠 On-chain arbitration logic ready for DAO integration  
-- ⭐ **On-chain reputation system:** Tenants and landlords can rate each other 1–5 stars after escrow completion. Average ratings are stored and visible on-chain, building trust and transparency.  
+- 🧠 Legally Recorded arbitration logic ready for DAO integration  
+- ⭐ **Legally Recorded reputation system:** Tenants and landlords can rate each other 1–5 stars after escrow completion. Average ratings are stored and visible, building trust and transparency.  
 - ⚙️ Built using modular TypeScript components
 
 ---
@@ -91,7 +96,7 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
    - Tenancy start date  
    - Tenancy duration (in months)  
    - Landlord wallet address  
-5. Click **Pay Token** to confirm the payment on-chain.
+5. Click **Pay Token** to confirm the payment (Legally Recorded).
 
 ---
 

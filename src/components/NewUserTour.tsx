@@ -14,7 +14,7 @@ const tourSteps = [
   },
   {
     id: "email-signatory",
-    text: "Sign with your email—no wallet or ETH needed! Our Paymaster covers gas so you onboard instantly.",
+    text: "Sign with your email—no wallet or ETH needed! UltraRentz covers all Security Transaction fees so you onboard instantly.",
     attachTo: { element: "#email-sign", on: "bottom" },
     buttons: [
       { text: "Next", action: () => { tour.next(); } }
@@ -22,7 +22,7 @@ const tourSteps = [
   },
   {
     id: "account-abstraction",
-    text: "UltraRentz uses Account Abstraction (ERC-4337) for seamless, secure onboarding. You control your deposit, not your keys.",
+    text: "UltraRentz uses a Secure Digital Vault for seamless, secure onboarding. You control your deposit, not your keys.",
     attachTo: { element: "#account-abstraction", on: "bottom" },
     buttons: [
       { text: "Finish", action: () => { tour.complete(); } }

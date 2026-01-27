@@ -5,6 +5,7 @@ const accountAbstractionRoutes = require('./routes/accountAbstractionRoutes');
 const approvalActionRoutes = require('./routes/approvalActionRoutes');
 const apiSendDepositNotification = require('./apiSendDepositNotification');
 const email = require('./email');
+const apiResumeReminder = require('./apiResumeReminder');
 require('dotenv').config();
 
 const app = express();
@@ -15,6 +16,7 @@ app.use('/api', accountAbstractionRoutes);
 app.use('/api', approvalActionRoutes);
 app.use('/api', apiSendDepositNotification);
 app.use('/api', email);
+app.use('/api', apiResumeReminder);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

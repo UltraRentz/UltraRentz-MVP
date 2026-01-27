@@ -1,5 +1,5 @@
 // src/utils/accountAbstraction.ts
-// Minimal ERC-4337 Account Abstraction and Paymaster utility setup
+// Minimal Secure Digital Vault and Paymaster utility setup
 import { Bundler, UserOperation, PaymasterAPI, SimpleAccountAPI } from '@account-abstraction/sdk';
 import { ethers } from 'ethers';
 

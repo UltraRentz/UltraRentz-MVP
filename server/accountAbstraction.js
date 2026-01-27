@@ -1,5 +1,5 @@
 // server/accountAbstraction.js
-// Backend logic for ERC-4337 onboarding and gasless approval for email signatories
+// Backend logic for Secure Digital Vault onboarding and Security Transaction-covered approval for email signatories
 const { ethers } = require('ethers');
 const { Bundler, PaymasterAPI, SimpleAccountAPI } = require('@account-abstraction/sdk');
 
