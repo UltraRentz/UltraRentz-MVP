@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.33;
 
 import "openzeppelin-contracts/contracts/proxy/Clones.sol";
 import "./UltraRentzEscrow.sol";
+import "lib/openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 /// @title EscrowFactory
 /// @notice Deploys minimal proxy (ERC-1167) clones of UltraRentzEscrow to save gas
 contract EscrowFactory {
+    using Time for *;
     address public immutable implementation;
     event EscrowDeployed(address indexed proxy, address indexed creator, uint256 timestamp);
 
@@ -19,6 +21,6 @@ contract EscrowFactory {
     /// @return proxy The address of the deployed proxy contract
     function createEscrow() external returns (address proxy) {
         proxy = Clones.clone(implementation);
-        emit EscrowDeployed(proxy, msg.sender, block.timestamp);
+        emit EscrowDeployed(proxy, msg.sender, Time.timestamp());
     }
 }

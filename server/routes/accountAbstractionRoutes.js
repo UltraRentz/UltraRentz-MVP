@@ -1,3 +1,13 @@
+// GET /api/escrows-by-email?email=foo@bar.com
+router.get('/escrows-by-email', (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'Missing email' });
+  // signatoryAccounts is in-memory in accountAbstraction.js
+  const { signatoryAccounts } = require('../accountAbstraction');
+  const escrows = signatoryAccounts[email] || [];
+  // Only return escrowId and address for dashboard
+  res.json({ escrows: escrows.map(e => ({ escrowId: e.escrowId, address: e.address })) });
+});
 // server/routes/accountAbstractionRoutes.js
 const express = require('express');
 const router = express.Router();

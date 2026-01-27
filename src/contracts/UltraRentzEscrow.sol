@@ -1,17 +1,19 @@
 
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.33;
 
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import "lib/openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 /// @title UltraRentz Escrow Contract
 /// @notice Facilitates secure rent deposit management using 4-of-6 multi-signature approval
 /// @dev Integrates ERC20 tokens (URZ), DAO resolution, 7-day windows, and 2-appeal limits.
 contract UltraRentzEscrow is Ownable, ReentrancyGuard, Pausable {
+    using Time for *;
     using SafeERC20 for IERC20;
         // --- REPUTATION SYSTEM ---
         mapping(address => uint256) public totalRatingsReceived;
@@ -131,6 +133,12 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard, Pausable {
         revert("UltraRentzEscrow does not accept Ether");
     }
 
+    // Emergency function to withdraw stuck Ether (should never be needed, but for safety)
+    function withdrawEther(address payable to) external onlyOwner {
+        require(to != address(0), "Invalid address");
+        to.transfer(address(this).balance);
+    }
+
     // --- Core Functions (No changes needed) ---
     function createEscrow(
         address landlord,
@@ -168,53 +176,52 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard, Pausable {
         emit EscrowCreated(id, msg.sender, landlord, token);
     }
 
-    function fundEscrow(uint256 escrowId) external onlyTenant(escrowId) nonReentrant whenNotPaused {
+    function fundEscrow(uint256 escrowId) external nonReentrant onlyTenant(escrowId) whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Created, "Escrow is not fundable");
-        IERC20(e.token).safeTransferFrom(msg.sender, address(this), e.amount);
+        // Effects
         e.state = EscrowState.Funded;
-
+        // Interactions
+        IERC20(e.token).safeTransferFrom(msg.sender, address(this), e.amount);
         emit EscrowFunded(escrowId, e.amount);
     }
 
-    function approveRelease(uint256 escrowId) external onlySignatory(escrowId) nonReentrant whenNotPaused {
+    function approveRelease(uint256 escrowId) external nonReentrant onlySignatory(escrowId) whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Invalid state");
         require(!e.hasApproved[msg.sender], "Already approved");
-
+        // Effects
         e.hasApproved[msg.sender] = true;
         e.approvals++;
-
         emit ApprovalSubmitted(escrowId, msg.sender, e.approvals);
-
+        // Interactions
         if (e.approvals >= 4) {
             _releaseToLandlord(escrowId);
         }
     }
 
-    function releaseAfterEndDate(uint256 escrowId) external onlySignatory(escrowId) nonReentrant whenNotPaused {
+    function releaseAfterEndDate(uint256 escrowId) external nonReentrant onlySignatory(escrowId) whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Invalid state");
-        require(block.timestamp > e.endDate, "Tenancy not ended");
+        require(Time.timestamp() > e.endDate, "Tenancy not ended");
         require(!e.hasApproved[msg.sender], "Already approved");
-
+        // Effects
         e.hasApproved[msg.sender] = true;
         e.approvals++;
-
         emit ApprovalSubmitted(escrowId, msg.sender, e.approvals);
-
+        // Interactions
         if (e.approvals >= 4) {
             _releaseToLandlord(escrowId);
         }
     }
 
-    function raiseDispute(uint256 escrowId) external onlyTenant(escrowId) whenNotPaused {
+    function raiseDispute(uint256 escrowId) external nonReentrant onlyTenant(escrowId) whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Cannot dispute");
-
+        // Effects
         e.state = EscrowState.InDispute;
-        e.disputeTimestamp = block.timestamp;
-
+        e.disputeTimestamp = Time.timestamp();
+        // Interactions
         emit EscrowDisputed(escrowId);
         emit Notification("Dispute raised. DAO will review within 7 days.");
     }
@@ -222,68 +229,56 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard, Pausable {
     // --- DAO RESOLUTION FUNCTIONS (UPDATED) ---
 
     // Function 1: Initial resolution (must be within 7 days of dispute)
-    function resolveDispute(uint256 escrowId, bool releaseToLandlord) external onlyDAO nonReentrant whenNotPaused {
+    function resolveDispute(uint256 escrowId, bool releaseToLandlord) external nonReentrant onlyDAO whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.InDispute, "Not in dispute");
-        require(block.timestamp <= e.disputeTimestamp + RESOLUTION_WINDOW, "Resolution time expired");
-
-        // *** FIX: Only update state, do NOT transfer funds yet. ***
+        require(Time.timestamp() <= e.disputeTimestamp + RESOLUTION_WINDOW, "Resolution time expired");
+        // Effects
         _recordResolution(escrowId, releaseToLandlord, EscrowState.DecisionToRelease, EscrowState.DecisionToRefund);
-        
+        // Interactions
         emit DisputeResolved(escrowId, e.state);
     }
     
     // Function 2: Tenant submits appeal (max 2 times)
-    function submitAppeal(uint256 escrowId) external onlyTenant(escrowId) whenNotPaused {
-    // Correctly retrieve the struct from storage using the 'storage' keyword
-    Escrow storage e = escrows[escrowId];
-    
-    // Allowed only if the state is a decision pending appeal finalization
-    require(e.state == EscrowState.DecisionToRelease || e.state == EscrowState.DecisionToRefund, 
-            "Cannot appeal from current state");
-    
-    // FIX APPLIED HERE: Changed details_.appealCount to e.appealCount
-    require(e.appealCount < MAX_APPEALS, "Maximum appeals reached (2)");
-
-    e.appealCount++;
-    e.disputeTimestamp = block.timestamp; // Reset timestamp for new resolution window
-    e.state = EscrowState.PendingAppeal;
-
-    emit AppealSubmitted(escrowId);
-    emit Notification("Appeal submitted. DAO deliberation pending.");
-}
+    function submitAppeal(uint256 escrowId) external nonReentrant onlyTenant(escrowId) whenNotPaused {
+        Escrow storage e = escrows[escrowId];
+        // Allowed only if the state is a decision pending appeal finalization
+        require(e.state == EscrowState.DecisionToRelease || e.state == EscrowState.DecisionToRefund, "Cannot appeal from current state");
+        require(e.appealCount < MAX_APPEALS, "Maximum appeals reached (2)");
+        // Effects
+        e.appealCount++;
+        e.disputeTimestamp = Time.timestamp(); // Reset timestamp for new resolution window
+        e.state = EscrowState.PendingAppeal;
+        // Interactions
+        emit AppealSubmitted(escrowId);
+        emit Notification("Appeal submitted. DAO deliberation pending.");
+    }
 
     // Function 3: Final appeal decision (must be within 7 days of appeal)
-    function finalizeAppealDecision(uint256 escrowId, bool releaseToLandlord) external onlyDAO nonReentrant whenNotPaused {
+    function finalizeAppealDecision(uint256 escrowId, bool releaseToLandlord) external nonReentrant onlyDAO whenNotPaused {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.PendingAppeal, "No pending appeal");
-        require(block.timestamp <= e.disputeTimestamp + RESOLUTION_WINDOW, "Resolution time expired");
-
-        // *** FIX: Only update state, do NOT transfer funds yet. ***
+        require(Time.timestamp() <= e.disputeTimestamp + RESOLUTION_WINDOW, "Resolution time expired");
+        // Effects
         _recordResolution(escrowId, releaseToLandlord, EscrowState.DecisionToRelease, EscrowState.DecisionToRefund);
-        
+        // Interactions
         emit AppealFinalized(escrowId, e.state, releaseToLandlord);
         emit DisputeResolved(escrowId, e.state);
     }
     
     // Function 4: Finalize the entire dispute process and transfer funds
-    function finalizeEscrow(uint256 escrowId) external onlyDAO nonReentrant whenNotPaused {
+    function finalizeEscrow(uint256 escrowId) external nonReentrant onlyDAO whenNotPaused {
         Escrow storage e = escrows[escrowId];
-        
         // Check for final decision state
         bool isFinalDecision = e.state == EscrowState.DecisionToRelease || e.state == EscrowState.DecisionToRefund;
         require(isFinalDecision, "Escrow not ready for finalization (no decision made)");
-        
         // Check if the appeal/resolution window has expired (prevent immediate appeal)
-        bool windowExpired = block.timestamp > e.disputeTimestamp + RESOLUTION_WINDOW;
-        
+        bool windowExpired = Time.timestamp() > e.disputeTimestamp + RESOLUTION_WINDOW;
         // Check if max appeals have been reached, or if the resolution window has expired.
         // If max appeals reached (2), the window check is overridden and it can be finalized.
         bool maxAppealsReached = e.appealCount >= MAX_APPEALS;
-        
         require(windowExpired || maxAppealsReached, "Appeal window is still active");
-        
-        // Execute fund transfer based on the decision state
+        // Interactions
         if (e.state == EscrowState.DecisionToRelease) {
             _executeTransfer(escrowId, true, EscrowState.Released);
         } else { // EscrowState.DecisionToRefund

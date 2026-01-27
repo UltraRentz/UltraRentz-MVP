@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.33;
 
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
+import "lib/openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 /// @title UltraRentzDAO
 /// @notice Simple DAO for dispute resolution in UltraRentz escrow
 contract UltraRentzDAO is Ownable, Pausable {
+    using Time for *;
     enum Decision { None, FullRelease, PartialRelease, NoRelease }
 
     struct Dispute {
@@ -34,6 +36,12 @@ contract UltraRentzDAO is Ownable, Pausable {
         revert("UltraRentzDAO does not accept Ether");
     }
 
+    // Emergency function to withdraw stuck Ether (should never be needed, but for safety)
+    function withdrawEther(address payable to) external onlyOwner {
+        require(to != address(0), "Invalid address");
+        to.transfer(address(this).balance);
+    }
+
     function referDispute(uint256 escrowId, address tenant, address landlord, uint256 amount) external onlyOwner whenNotPaused {
         require(tenant != address(0), "Tenant cannot be zero address");
         require(landlord != address(0), "Landlord cannot be zero address");
@@ -43,7 +51,7 @@ contract UltraRentzDAO is Ownable, Pausable {
             landlord: landlord,
             amount: amount,
             decision: Decision.None,
-            createdAt: block.timestamp,
+            createdAt: Time.timestamp(),
             appealed: false,
             resolved: false
         });
@@ -52,7 +60,7 @@ contract UltraRentzDAO is Ownable, Pausable {
 
     function decideDispute(uint256 escrowId, Decision decision, uint256 amountReleased) external onlyOwner whenNotPaused {
         Dispute storage d = disputes[escrowId];
-        require(block.timestamp <= d.createdAt + RESOLUTION_WINDOW, "DAO: Resolution window expired");
+        require(Time.timestamp() <= d.createdAt + RESOLUTION_WINDOW, "DAO: Resolution window expired");
         require(!d.resolved, "DAO: Already resolved");
         d.decision = decision;
         d.resolved = true;
@@ -65,7 +73,7 @@ contract UltraRentzDAO is Ownable, Pausable {
         require(!d.appealed, "DAO: Already appealed");
         d.appealed = true;
         d.resolved = false;
-        d.createdAt = block.timestamp;
+        d.createdAt = Time.timestamp();
         emit AppealSubmitted(escrowId);
     }
 

@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.33;
 
 import "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "./UltraRentzDAO.sol";
 import "./UltraRentzStable.sol";
+import "lib/openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 /// @title EscrowStateMachine
 /// @notice Secure escrow contract with state machine architecture and governance hooks
 contract EscrowStateMachine is Ownable, ReentrancyGuard {
+    using Time for *;
         // TESTING ONLY: allow bypassing onlyOwner for invariant/fuzz tests
         bool public testBypassOnlyOwner;
 
@@ -36,8 +38,8 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         uint256 amount;
     }
 
-    UltraRentzDAO immutable dao;
-    UltraRentzStable immutable urzToken;
+    UltraRentzDAO public immutable dao;
+    UltraRentzStable public immutable urzToken;
     uint256 public escrowCounter;
     mapping(uint256 => Escrow) public escrows;
     mapping(uint256 => bool) public disputeReferred;
@@ -84,11 +86,13 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         emit EscrowCreated(id, msg.sender, landlord, token);
     }
 
-    function fundEscrow(uint256 escrowId) external onlyTenant(escrowId) nonReentrant {
+    function fundEscrow(uint256 escrowId) external nonReentrant onlyTenant(escrowId) {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Created, "Escrow is not fundable");
-        IERC20(e.token).transferFrom(msg.sender, address(this), e.amount);
+        // Effects
         e.state = EscrowState.Funded;
+        // Interactions
+        require(IERC20(e.token).transferFrom(msg.sender, address(this), e.amount), "Transfer failed");
         // Only mint if this is the URZ token
         require(e.token == address(urzToken), "Token must be URZ for mint");
         urzToken.mint(e.tenant, e.amount);
@@ -100,7 +104,7 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Cannot dispute");
         e.state = EscrowState.InDispute;
-        e.disputeTimestamp = uint32(block.timestamp);
+        e.disputeTimestamp = uint32(Time.timestamp());
         emit EscrowDisputed(escrowId);
     }
 
@@ -113,7 +117,7 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         emit DisputeReferredToDAO(escrowId);
     }
 
-    function resolveByDAO(uint256 escrowId) external {
+    function resolveByDAO(uint256 escrowId) external nonReentrant {
         require(disputeReferred[escrowId], "Not referred");
         (
             , // escrowId
@@ -128,16 +132,22 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.InDispute, "Not in dispute");
         require(resolved, "DAO not resolved");
+        // Effects
         if (decision == UltraRentzDAO.Decision.FullRelease) {
             e.state = EscrowState.Released;
-            IERC20(e.token).transfer(e.landlord, amountReleased);
         } else if (decision == UltraRentzDAO.Decision.PartialRelease) {
             e.state = EscrowState.Released;
-            IERC20(e.token).transfer(e.landlord, amountReleased);
-            IERC20(e.token).transfer(e.tenant, e.amount - amountReleased);
         } else if (decision == UltraRentzDAO.Decision.NoRelease) {
             e.state = EscrowState.Refunded;
-            IERC20(e.token).transfer(e.tenant, e.amount);
+        }
+        // Interactions
+        if (decision == UltraRentzDAO.Decision.FullRelease) {
+            require(IERC20(e.token).transfer(e.landlord, amountReleased), "Transfer failed");
+        } else if (decision == UltraRentzDAO.Decision.PartialRelease) {
+            require(IERC20(e.token).transfer(e.landlord, amountReleased), "Transfer failed");
+            require(IERC20(e.token).transfer(e.tenant, e.amount - amountReleased), "Transfer failed");
+        } else if (decision == UltraRentzDAO.Decision.NoRelease) {
+            require(IERC20(e.token).transfer(e.tenant, e.amount), "Transfer failed");
         }
         emit DAOResolved(escrowId, decision, amountReleased);
     }
@@ -166,8 +176,10 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         }
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded || e.state == EscrowState.InDispute, "Not releasable");
+        // Effects
         e.state = EscrowState.Released;
-        IERC20(e.token).transfer(e.landlord, e.amount);
+        // Interactions
+        require(IERC20(e.token).transfer(e.landlord, e.amount), "Transfer failed");
         // Only burn if this is the URZ token
         require(e.token == address(urzToken), "Token must be URZ for burn");
         urzToken.burn(e.tenant, e.amount);
@@ -178,8 +190,10 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
     function refundEscrow(uint256 escrowId) external onlyOwner nonReentrant {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded || e.state == EscrowState.InDispute, "Not refundable");
+        // Effects
         e.state = EscrowState.Refunded;
-        IERC20(e.token).transfer(e.tenant, e.amount);
+        // Interactions
+        require(IERC20(e.token).transfer(e.tenant, e.amount), "Transfer failed");
         // Only burn if this is the URZ token
         require(e.token == address(urzToken), "Token must be URZ for burn");
         urzToken.burn(e.tenant, e.amount);

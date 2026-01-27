@@ -240,7 +240,7 @@ const RentDepositApp: React.FC = () => {
         connectEthereumWallet={connectEthereumWallet}
         darkMode={darkMode}
 
-        polkadotAccount={null}  // <-- Added to fix build error
+        polkadotAccount={null}
         // Add formatted dates for display
         formattedStartDate={formatDateUK(state.tenancyStartDate)}
         formattedEndDate={formatDateUK(state.tenancyEnd)}

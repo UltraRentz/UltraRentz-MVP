@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.33;
 
 import "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
+import "lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "./IMintableERC20.sol";
+import "lib/openzeppelin-contracts/contracts/utils/types/Time.sol";
 
 /// @title UltraRentz Staking & Lending
 /// @notice Stake URZ tokens to earn interest, borrow against deposits
-contract UltraRentzStaking is Ownable, Pausable {
-    IERC20 public urzToken;
+contract UltraRentzStaking is Ownable, Pausable, ReentrancyGuard {
+    using Time for *;
+    IERC20 public immutable urzToken;
     uint256 public totalStaked;
-    uint256 public annualRate; // e.g., 10% APY = 1000 (basis points)
+    uint256 public immutable annualRate; // e.g., 10% APY = 1000 (basis points)
     uint256 public constant BASIS_POINTS = 10000;
 
     struct StakeInfo {
@@ -31,62 +34,70 @@ contract UltraRentzStaking is Ownable, Pausable {
         annualRate = _annualRateBps;
     }
 
-    function stake(uint256 amount) external whenNotPaused {
+    function stake(uint256 amount) external nonReentrant whenNotPaused {
         require(amount > 0, "Amount must be > 0");
-        urzToken.transferFrom(msg.sender, address(this), amount);
+        // Effects
         _updateReward(msg.sender);
         stakes[msg.sender].amount += amount;
-        stakes[msg.sender].timestamp = block.timestamp;
+        stakes[msg.sender].timestamp = Time.timestamp();
         totalStaked += amount;
+        // Interactions
+        require(urzToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
         emit Staked(msg.sender, amount);
     }
 
-    function unstake(uint256 amount) external whenNotPaused {
+    function unstake(uint256 amount) external nonReentrant whenNotPaused {
         require(stakes[msg.sender].amount >= amount, "Insufficient staked");
+        // Effects
         _updateReward(msg.sender);
         stakes[msg.sender].amount -= amount;
         totalStaked -= amount;
         uint256 reward = stakes[msg.sender].rewardDebt;
         stakes[msg.sender].rewardDebt = 0;
-        // Mint reward if contract is owner
+        // Interactions
+        bool success;
         if (address(urzToken) != address(0) && address(this) == Ownable(address(urzToken)).owner() && reward > 0) {
-            // Only mint reward, not principal
             IMintableERC20(address(urzToken)).mint(msg.sender, reward);
-            urzToken.transfer(msg.sender, amount);
+            success = urzToken.transfer(msg.sender, amount);
         } else {
-            urzToken.transfer(msg.sender, amount + reward);
+            success = urzToken.transfer(msg.sender, amount + reward);
         }
+        require(success, "Transfer failed");
         emit Unstaked(msg.sender, amount, reward);
     }
 
     function pendingReward(address user) public view returns (uint256) {
         StakeInfo storage s = stakes[user];
         if (s.amount == 0) return 0;
-        uint256 timeStaked = block.timestamp - s.timestamp;
+        uint256 timeStaked = Time.timestamp() - s.timestamp;
         // Simple APY calculation (not compounding)
         return s.amount * annualRate * timeStaked / BASIS_POINTS / 365 days;
     }
 
     function _updateReward(address user) internal {
         stakes[user].rewardDebt += pendingReward(user);
-        stakes[user].timestamp = block.timestamp;
+        stakes[user].timestamp = Time.timestamp();
     }
 
     // --- Lending (PoC) ---
     mapping(address => uint256) public borrows;
-    uint256 public collateralFactor = 5000; // 50% LTV
+    uint256 public constant COLLATERAL_FACTOR = 5000; // 50% LTV
 
-    function borrow(uint256 amount) external whenNotPaused {
-        require(stakes[msg.sender].amount * collateralFactor / BASIS_POINTS >= amount, "Insufficient collateral");
+    function borrow(uint256 amount) external nonReentrant whenNotPaused {
+        require(stakes[msg.sender].amount * COLLATERAL_FACTOR / BASIS_POINTS >= amount, "Insufficient collateral");
+        // Effects
         borrows[msg.sender] += amount;
-        urzToken.transfer(msg.sender, amount);
+        // Interactions
+        require(urzToken.transfer(msg.sender, amount), "Transfer failed");
         emit Borrowed(msg.sender, amount);
     }
 
-    function repay(uint256 amount) external whenNotPaused {
+    function repay(uint256 amount) external nonReentrant whenNotPaused {
         require(borrows[msg.sender] >= amount, "No such debt");
-        urzToken.transferFrom(msg.sender, address(this), amount);
+        // Effects
         borrows[msg.sender] -= amount;
+        // Interactions
+        require(urzToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
         emit Repaid(msg.sender, amount);
     }
 

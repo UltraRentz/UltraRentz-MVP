@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.33;
 
 import "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
@@ -27,6 +27,12 @@ contract UltraRentzStable is ERC20, Ownable, Pausable {
 
     receive() external payable {
         revert("UltraRentzStable does not accept Ether");
+    }
+
+    // Emergency function to withdraw stuck Ether (should never be needed, but for safety)
+    function withdrawEther(address payable to) external onlyOwner {
+        require(to != address(0), "Invalid address");
+        to.transfer(address(this).balance);
     }
 
     // --- Extension Points ---
