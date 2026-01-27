@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
+import "./IMintableERC20.sol";
 
 /// @title UltraRentz Staking & Lending
 /// @notice Stake URZ tokens to earn interest, borrow against deposits
@@ -47,7 +48,14 @@ contract UltraRentzStaking is Ownable, Pausable {
         totalStaked -= amount;
         uint256 reward = stakes[msg.sender].rewardDebt;
         stakes[msg.sender].rewardDebt = 0;
-        urzToken.transfer(msg.sender, amount + reward);
+        // Mint reward if contract is owner
+        if (address(urzToken) != address(0) && address(this) == Ownable(address(urzToken)).owner() && reward > 0) {
+            // Only mint reward, not principal
+            IMintableERC20(address(urzToken)).mint(msg.sender, reward);
+            urzToken.transfer(msg.sender, amount);
+        } else {
+            urzToken.transfer(msg.sender, amount + reward);
+        }
         emit Unstaked(msg.sender, amount, reward);
     }
 

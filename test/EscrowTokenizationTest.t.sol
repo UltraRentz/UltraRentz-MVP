@@ -16,9 +16,14 @@ contract EscrowTokenizationTest is Test {
 
     function setUp() public {
         urzToken = new UltraRentzStable(daoAdmin);
-        escrow = new EscrowStateMachine(daoAdmin, daoAdmin, address(urzToken));
+        escrow = new EscrowStateMachine(daoAdmin, payable(daoAdmin), payable(address(urzToken)));
+        // Transfer ownership of URZ token to EscrowStateMachine
         vm.prank(daoAdmin);
+        urzToken.transferOwnership(address(escrow));
+        // Mint initial balance as EscrowStateMachine (now owner, after deployment)
+        vm.startPrank(address(escrow));
         urzToken.mint(tenant, RENT_AMOUNT * 10); // Pre-mint for testing
+        vm.stopPrank();
     }
 
     function testDepositTokenizationOnFund() public {
@@ -28,28 +33,37 @@ contract EscrowTokenizationTest is Test {
         urzToken.approve(address(escrow), RENT_AMOUNT);
         vm.prank(tenant);
         escrow.fundEscrow(escrowId);
-        assertEq(urzToken.balanceOf(tenant), RENT_AMOUNT * 10 + RENT_AMOUNT); // Minted on fund
+        emit log_named_uint("Balance after fund", urzToken.balanceOf(tenant));
+        assertEq(urzToken.balanceOf(tenant), RENT_AMOUNT * 10); // After transfer and mint
     }
 
     function testDepositBurnOnRelease() public {
+        emit log_named_uint("Balance before fund", urzToken.balanceOf(tenant));
         vm.prank(tenant);
         uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
         vm.prank(tenant);
         urzToken.approve(address(escrow), RENT_AMOUNT);
         vm.prank(tenant);
         escrow.fundEscrow(escrowId);
+        emit log_named_uint("Balance after fund", urzToken.balanceOf(tenant));
+        vm.prank(daoAdmin);
         escrow.releaseEscrow(escrowId);
-        assertEq(urzToken.balanceOf(tenant), RENT_AMOUNT * 10); // Burned on release
+        emit log_named_uint("Balance after release", urzToken.balanceOf(tenant));
+        assertEq(urzToken.balanceOf(tenant), RENT_AMOUNT * 9); // After transfer, mint, and burn
     }
 
     function testDepositBurnOnRefund() public {
+        emit log_named_uint("Balance before fund", urzToken.balanceOf(tenant));
         vm.prank(tenant);
         uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
         vm.prank(tenant);
         urzToken.approve(address(escrow), RENT_AMOUNT);
         vm.prank(tenant);
         escrow.fundEscrow(escrowId);
+        emit log_named_uint("Balance after fund", urzToken.balanceOf(tenant));
+        vm.prank(daoAdmin);
         escrow.refundEscrow(escrowId);
-        assertEq(urzToken.balanceOf(tenant), RENT_AMOUNT * 10); // Burned on refund
+        emit log_named_uint("Balance after refund", urzToken.balanceOf(tenant));
+        assertEq(urzToken.balanceOf(tenant), RENT_AMOUNT * 10); // No net change after refund
     }
 }

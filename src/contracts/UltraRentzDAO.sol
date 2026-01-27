@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
-import "openzeppelin-contracts/contracts/security/Pausable.sol";
+import "lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 /// @title UltraRentzDAO
 /// @notice Simple DAO for dispute resolution in UltraRentz escrow

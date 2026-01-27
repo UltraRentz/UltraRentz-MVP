@@ -123,7 +123,7 @@ const RentDepositApp: React.FC = () => {
 
     <div className={`main-container min-h-screen p-6 sm:p-8 md:p-10 w-full max-w-4xl mx-auto space-y-8 ${darkMode ? 'bg-black text-white' : 'bg-white text-black'}`}>
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-2">
-        <div className="flex items-center">
+        <div className="flex items-center" id="vault-intro">
           <div className="logo-placeholder">UR</div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">UltraRentz – Securing, Protecting and Monetising Rent Deposits</h1>
         </div>
@@ -181,7 +181,39 @@ const RentDepositApp: React.FC = () => {
         </div>
       </div>
 
-      <DepositForm
+      <div id="email-sign">
+        {/* DepositForm contains email signatory logic */}
+        <DepositForm
+          depositAmount={state.depositAmount}
+          setDepositAmount={(val) => updateState({ depositAmount: val })}
+          tenancyStartDate={state.tenancyStartDate}
+          setTenancyStartDate={(val) => updateState({ tenancyStartDate: val })}
+          tenancyDurationMonths={state.tenancyDurationMonths}
+          setTenancyDurationMonths={(val) => updateState({ tenancyDurationMonths: val })}
+          tenancyEnd={state.tenancyEnd}
+          setTenancyEnd={(val) => updateState({ tenancyEnd: val })}
+          paymentMode={state.paymentMode}
+          setPaymentMode={(val) => updateState({ paymentMode: val })}
+          fiatConfirmed={false}
+          ethereumProvider={state.ethereumProvider}
+          ethereumSigner={state.ethereumSigner}
+          ethereumAccount={state.ethereumAccount}
+          setEthereumProvider={(val) => updateState({ ethereumProvider: val })}
+          setEthereumSigner={(val) => updateState({ ethereumSigner: val })}
+          setEthereumAccount={(val) => updateState({ ethereumAccount: val })}
+          landlordInput={state.landlordInput}
+          setLandlordInput={(val) => updateState({ landlordInput: val })}
+          paymentStatus={state.paymentStatus}
+          setPaymentStatus={(val) => updateState({ paymentStatus: val })}
+          paymentTxHash={state.paymentTxHash}
+          setPaymentTxHash={(val) => updateState({ paymentTxHash: val })}
+          connectEthereumWallet={connectEthereumWallet}
+          darkMode={darkMode}
+          polkadotAccount={null}
+          formattedStartDate={formatDateUK(state.tenancyStartDate)}
+          formattedEndDate={formatDateUK(state.tenancyEnd)}
+        />
+      </div>
         depositAmount={state.depositAmount}
         setDepositAmount={(val) => updateState({ depositAmount: val })}
         tenancyStartDate={state.tenancyStartDate}
@@ -216,10 +248,12 @@ const RentDepositApp: React.FC = () => {
 
 
 
-      <div className="border-t pt-6">
+      <div className="border-t pt-6" id="account-abstraction">
         <h2 className="text-xl font-semibold">Step 3: Deposit Release (Coming Soon)</h2>
         <p>This section will allow deposit release with 4-of-6 multisig approval after tenancy ends.</p>
       </div>
+      {/* Shepherd.js New User Tour */}
+      <NewUserTour />
     </div>
   );
 };

@@ -15,7 +15,11 @@ contract UltraRentzStakingTest is Test {
     function setUp() public {
         urzToken = new UltraRentzStable(address(this));
         staking = new UltraRentzStaking(address(this), address(urzToken), APY_BPS);
+        // Transfer URZ token ownership to staking contract so it can mint rewards
         vm.prank(address(this));
+        urzToken.transferOwnership(address(staking));
+        // Mint initial balance for user
+        vm.prank(address(staking));
         urzToken.mint(user, STAKE_AMOUNT * 10);
         vm.prank(user);
         urzToken.approve(address(staking), STAKE_AMOUNT * 10);
@@ -29,8 +33,10 @@ contract UltraRentzStakingTest is Test {
         vm.warp(block.timestamp + 365 days);
         vm.prank(user);
         staking.unstake(STAKE_AMOUNT);
-        // User should receive original + 10% reward
-        assertEq(urzToken.balanceOf(user), STAKE_AMOUNT * 10 + STAKE_AMOUNT + (STAKE_AMOUNT / 10));
+        // User should receive original principal (transferred) and reward (minted)
+        uint256 expectedReward = (STAKE_AMOUNT * APY_BPS * 365 days) / 10000 / 365 days;
+        uint256 expectedBalance = (STAKE_AMOUNT * 10) + expectedReward;
+        assertEq(urzToken.balanceOf(user), expectedBalance);
     }
 
     function testBorrowAndRepay() public {
@@ -39,7 +45,9 @@ contract UltraRentzStakingTest is Test {
         // User can borrow up to 50% of staked amount
         vm.prank(user);
         staking.borrow(STAKE_AMOUNT / 2);
-        assertEq(urzToken.balanceOf(user), STAKE_AMOUNT * 10 + (STAKE_AMOUNT / 2));
+        // User's balance: initial - staked + borrowed
+        uint256 expectedBalance = (STAKE_AMOUNT * 10) - STAKE_AMOUNT + (STAKE_AMOUNT / 2);
+        assertEq(urzToken.balanceOf(user), expectedBalance);
         // Repay loan
         vm.prank(user);
         urzToken.approve(address(staking), STAKE_AMOUNT / 2);

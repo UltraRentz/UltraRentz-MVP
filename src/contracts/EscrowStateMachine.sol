@@ -10,6 +10,14 @@ import "./UltraRentzStable.sol";
 /// @title EscrowStateMachine
 /// @notice Secure escrow contract with state machine architecture and governance hooks
 contract EscrowStateMachine is Ownable, ReentrancyGuard {
+        // TESTING ONLY: allow bypassing onlyOwner for invariant/fuzz tests
+        bool public testBypassOnlyOwner;
+
+        /// @dev TESTING ONLY: enable or disable onlyOwner bypass
+        function setTestBypassOnlyOwner(bool enabled) external {
+            require(msg.sender == owner(), "Only owner can set bypass");
+            testBypassOnlyOwner = enabled;
+        }
     enum EscrowState {
         Created,
         Funded,
@@ -21,18 +29,17 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
     struct Escrow {
         address tenant;
         address landlord;
-        uint256 amount;
         address token;
-        EscrowState state;
-        uint256 disputeTimestamp;
+        uint32 disputeTimestamp;
         bool exists;
+        EscrowState state;
+        uint256 amount;
     }
 
+    UltraRentzDAO immutable dao;
+    UltraRentzStable immutable urzToken;
     uint256 public escrowCounter;
     mapping(uint256 => Escrow) public escrows;
-
-    UltraRentzDAO public dao;
-    UltraRentzStable public urzToken;
     mapping(uint256 => bool) public disputeReferred;
 
     event EscrowCreated(uint256 indexed escrowId, address indexed tenant, address landlord, address token);
@@ -56,7 +63,7 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address initialOwner, address daoAddress, address urzTokenAddress) Ownable(initialOwner) {
+    constructor(address initialOwner, address payable daoAddress, address payable urzTokenAddress) Ownable(initialOwner) {
         dao = UltraRentzDAO(daoAddress);
         urzToken = UltraRentzStable(urzTokenAddress);
     }
@@ -79,20 +86,21 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
 
     function fundEscrow(uint256 escrowId) external onlyTenant(escrowId) nonReentrant {
         Escrow storage e = escrows[escrowId];
-        require(e.state == EscrowState.Created, "Not fundable");
+        require(e.state == EscrowState.Created, "Escrow is not fundable");
         IERC20(e.token).transferFrom(msg.sender, address(this), e.amount);
         e.state = EscrowState.Funded;
-        // Mint URZ tokens to tenant representing deposit
-        urzToken.mint(msg.sender, e.amount);
+        // Only mint if this is the URZ token
+        require(e.token == address(urzToken), "Token must be URZ for mint");
+        urzToken.mint(e.tenant, e.amount);
         emit EscrowFunded(escrowId, e.amount);
-        emit DepositTokenized(escrowId, msg.sender, e.amount);
+        emit DepositTokenized(escrowId, e.tenant, e.amount);
     }
 
     function raiseDispute(uint256 escrowId) external onlyTenant(escrowId) {
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded, "Cannot dispute");
         e.state = EscrowState.InDispute;
-        e.disputeTimestamp = block.timestamp;
+        e.disputeTimestamp = uint32(block.timestamp);
         emit EscrowDisputed(escrowId);
     }
 
@@ -152,12 +160,16 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         emit DAOAppeal(escrowId);
     }
 
-    function releaseEscrow(uint256 escrowId) external onlyOwner nonReentrant {
+    function releaseEscrow(uint256 escrowId) external nonReentrant {
+        if (!testBypassOnlyOwner) {
+            require(msg.sender == owner(), "Ownable: caller is not the owner");
+        }
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded || e.state == EscrowState.InDispute, "Not releasable");
         e.state = EscrowState.Released;
         IERC20(e.token).transfer(e.landlord, e.amount);
-        // Burn tenant's URZ tokens
+        // Only burn if this is the URZ token
+        require(e.token == address(urzToken), "Token must be URZ for burn");
         urzToken.burn(e.tenant, e.amount);
         emit EscrowReleased(escrowId, e.landlord, e.token);
         emit DepositBurned(escrowId, e.tenant, e.amount);
@@ -168,7 +180,8 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         require(e.state == EscrowState.Funded || e.state == EscrowState.InDispute, "Not refundable");
         e.state = EscrowState.Refunded;
         IERC20(e.token).transfer(e.tenant, e.amount);
-        // Burn tenant's URZ tokens
+        // Only burn if this is the URZ token
+        require(e.token == address(urzToken), "Token must be URZ for burn");
         urzToken.burn(e.tenant, e.amount);
         emit EscrowRefunded(escrowId, e.tenant, e.token);
         emit DepositBurned(escrowId, e.tenant, e.amount);

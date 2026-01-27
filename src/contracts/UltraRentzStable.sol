@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import "lib/openzeppelin-contracts/contracts/security/Pausable.sol";
+import "lib/openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 /// @title UltraRentz Stablecoin (URZ)
 /// @notice ERC20 stablecoin with extension points for DeFi features

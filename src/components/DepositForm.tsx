@@ -22,6 +22,7 @@ const POPULAR_TOKENS = [
   { symbol: 'SAND', name: 'The Sandbox', address: '0x3845badade8e6dff049820680d1f14bd3903a5d0', decimals: 18 },
 ];
 import { useState, useCallback } from "react";
+import { create4337Account } from '../utils/accountAbstraction';
 import { formatDateUK } from '../utils/formatDate';
 import { UKDatePicker } from './UKDatePicker';
 import HelpFAQModal from "./HelpFAQModal";
@@ -99,6 +100,8 @@ export default function DepositForm(props: any) {
 
   const [tenantSignatories, setTenantSignatories] = useState<string[]>([""]);
   const [landlordSignatories, setLandlordSignatories] = useState<string[]>([""]);
+  // Map email signatory to their 4337 account address
+  const [emailSignatoryAccounts, setEmailSignatoryAccounts] = useState<{[email: string]: string}>({});
   const [activeTab, setActiveTab] = useState<'tenant' | 'landlord'>('tenant');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -137,6 +140,24 @@ export default function DepositForm(props: any) {
       darkMode ? "bg-black text-white border-white" : "bg-white text-black border-black"
     } ${inputErrors[field] ? 'border-red-500 ring-2 ring-red-300' : ''}`;
 
+  // Onboard email signatories to ERC-4337
+  const onboardEmailSignatories = async (signatories: string[]) => {
+    const provider = window.ethereum ? new ethers.BrowserProvider(window.ethereum) : null;
+    if (!provider) return {};
+    const mapping: {[email: string]: string} = {};
+    for (const s of signatories) {
+      // If it's an email, create a 4337 account
+      if (!ethers.isAddress(s) && s.includes('@')) {
+        // For demo: generate a random wallet (in production, use a secure deterministic or backend-managed key)
+        const wallet = ethers.Wallet.createRandom();
+        const account = await create4337Account(provider, wallet);
+        mapping[s] = await account.getAddress();
+      }
+    }
+    setEmailSignatoryAccounts(prev => ({...prev, ...mapping}));
+    return mapping;
+  };
+
   const handlePayToken = useCallback(async () => {
     try {
       setIsProcessingPayment(true);
@@ -154,11 +175,14 @@ export default function DepositForm(props: any) {
         ...tenantSignatories,
         ...landlordSignatories
       ];
+      // Onboard email signatories to ERC-4337 and get their smart account addresses
+      const emailToAccount = await onboardEmailSignatories(signatories);
       // Pad to 6 for contract
       while (signatories.length < 6) signatories.push("");
-      const walletSignatories = signatories.map(s => ethers.isAddress(s) ? s : ethers.ZeroAddress);
+      // Use 4337 account address for email signatories
+      const walletSignatories = signatories.map(s => ethers.isAddress(s) ? s : (emailToAccount[s] || ethers.ZeroAddress));
       if (walletSignatories.filter(addr => addr !== ethers.ZeroAddress).length < 1) {
-        return setPaymentStatus("❌ At least one signatory must be a wallet address.");
+        return setPaymentStatus("❌ At least one signatory must be a wallet address or email.");
       }
 
       // Find selected token info
@@ -203,7 +227,15 @@ export default function DepositForm(props: any) {
       await sendDepositNotification(renterEmail, landlordEmail, escrowId, depositAmount, signatoryEmails);
       setPaymentStatus(`✅ Rent deposit locked and notifications sent to renter, landlord, and signatories! Escrow ID: ${escrowId}`);
     } catch (err: any) {
-      setPaymentStatus("❌ " + (err.message || "Transaction failed"));
+      // Invisible Web3 error handling
+      const msg = (err?.message || "").toLowerCase();
+      if (msg.includes("bundler") || msg.includes("paymaster") || msg.includes("userop") || msg.includes("4337")) {
+        setPaymentStatus("❌ Our digital vault is currently performing a security update. Please try again in 5 minutes. Your progress has been saved.");
+      } else if (msg.includes("transak") || msg.includes("payment") || msg.includes("bank") || msg.includes("fiat") || msg.includes("kyb") || msg.includes("api key")) {
+        setPaymentStatus("❌ Your bank may need you to authorize this secure deposit. Please check your banking app or use a different payment method.");
+      } else {
+        setPaymentStatus("❌ " + (err.message || "Transaction failed"));
+      }
     }
 
     setIsProcessingPayment(false);

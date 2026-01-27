@@ -28,6 +28,22 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
   const [verified, setVerified] = useState<{[email: string]: boolean}>({});
   const [kycStatus, setKycStatus] = useState<{[email: string]: 'pending' | 'verified' | 'failed'}>({});
 
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    const draft = window.localStorage.getItem(`urz_signatories_${type}`);
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (Array.isArray(parsed)) setSignatories(parsed);
+      } catch {}
+    }
+  }, [setSignatories, type]);
+
+  // Save draft to localStorage on signatories change
+  useEffect(() => {
+    window.localStorage.setItem(`urz_signatories_${type}` , JSON.stringify(signatories));
+  }, [signatories, type]);
+
   // Basic email validation regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -128,7 +144,9 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
 
   const handleRemoveSignatory = useCallback((indexToRemove: number) => {
     const email = signatories[indexToRemove];
-    setSignatories(signatories.filter((_, index) => index !== indexToRemove));
+    const updated = signatories.filter((_, index) => index !== indexToRemove);
+    setSignatories(updated);
+    window.localStorage.setItem(`urz_signatories_${type}`, JSON.stringify(updated));
     setVerified((prev) => {
       const copy = { ...prev };
       delete copy[email];
@@ -140,7 +158,7 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
       return copy;
     });
     setErrorMessage(null); // Clear error after removal
-  }, [signatories, setSignatories]);
+  }, [signatories, setSignatories, type]);
 
   const { open, setOpen, HelpFAQ } = useHelpFAQModal();
   return (
@@ -236,7 +254,7 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
                     ) : kycStatus[signer] === 'pending' ? (
                       <span className="ml-2 text-yellow-600">(KYC Pending... <span className="animate-spin">⏳</span>)</span>
                     ) : kycStatus[signer] === 'failed' ? (
-                      <span className="ml-2 text-red-600">(KYC Failed)</span>
+                      <span className="ml-2 text-red-600">We couldn't verify your details automatically. Please ensure your photo is clear and matches your ID so we can secure your deposit.</span>
                     ) : (
                       <span className="ml-2 text-yellow-600">(Email Verified)</span>
                     )

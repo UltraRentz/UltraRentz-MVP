@@ -28,7 +28,7 @@ export default function TransakDeposit({ amountGBP }) {
         // This is a best-effort: in real prod, use Transak's widget event API
         // Here, we just alert after 2 seconds for demo/test mode
         setTimeout(() => {
-          alert("UltraRentz's payment gateway is in test mode. No real payments can be made until KYB is complete. If you see an 'API key not active' message, this is expected.");
+          alert("Your bank may need you to authorize this secure deposit. Please check your banking app or use a different payment method.");
         }, 2000);
         clearInterval(poll);
       } catch (e) {

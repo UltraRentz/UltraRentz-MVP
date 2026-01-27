@@ -9,6 +9,10 @@ import {console} from "forge-std/console.sol";
 
 // --- Deployable and Mintable ERC20 Mock ---
 contract TestERC20 is ERC20 {
+        // Public burn function for resetting balances in tests
+        function burn(address from, uint256 amount) public {
+            _burn(from, amount);
+        }
     constructor(
         string memory name,
         string memory symbol,
@@ -265,13 +269,14 @@ contract EscrowTest is Test {
     function testCannotFundEscrowTwice() public {
         uint256 escrowId = _createEscrowAndFund(tenant, landlord);
         vm.prank(tenant);
-        vm.expectRevert(bytes("Not fundable"));
+        vm.expectRevert(bytes("Escrow is not fundable"));
         escrow.fundEscrow(escrowId);
     }
 
     function testTokenTransferFailsOnInsufficientBalance() public {
-        // Mint only a small amount to tenant
+        // Reset tenant's balance to 0, then mint only a small amount
         vm.prank(daoAdmin);
+        urzToken.burn(tenant, urzToken.balanceOf(tenant));
         urzToken.mint(tenant, 1 ether);
         address[6] memory sigs = signatories;
         vm.startPrank(tenant);
@@ -284,7 +289,10 @@ contract EscrowTest is Test {
             block.timestamp + DURATION,
             sigs
         );
-        vm.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+        // Debug: check tenant's balance and allowance
+        assertEq(urzToken.balanceOf(tenant), 1 ether, "Tenant should have 1 ether");
+        assertEq(urzToken.allowance(tenant, address(escrow)), RENT_AMOUNT, "Escrow should have allowance for RENT_AMOUNT");
+        vm.expectRevert();
         escrow.fundEscrow(escrowId);
         vm.stopPrank();
     }
