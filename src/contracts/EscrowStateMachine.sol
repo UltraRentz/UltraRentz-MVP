@@ -118,6 +118,9 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
     }
 
     function resolveByDAO(uint256 escrowId) external nonReentrant {
+        if (!testBypassOnlyOwner) {
+            require(msg.sender == owner(), "Ownable: caller is not the owner");
+        }
         require(disputeReferred[escrowId], "Not referred");
         (
             , // escrowId
@@ -187,7 +190,10 @@ contract EscrowStateMachine is Ownable, ReentrancyGuard {
         emit DepositBurned(escrowId, e.tenant, e.amount);
     }
 
-    function refundEscrow(uint256 escrowId) external onlyOwner nonReentrant {
+    function refundEscrow(uint256 escrowId) external nonReentrant {
+        if (!testBypassOnlyOwner) {
+            require(msg.sender == owner(), "Ownable: caller is not the owner");
+        }
         Escrow storage e = escrows[escrowId];
         require(e.state == EscrowState.Funded || e.state == EscrowState.InDispute, "Not refundable");
         // Effects

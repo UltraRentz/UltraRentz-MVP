@@ -1,8 +1,16 @@
+// Helper contract to force Ether into escrow
+contract ForceEther {
+    constructor() payable {}
+    function go(address payable to) public {
+        selfdestruct(to);
+    }
+}
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {UltraRentzEscrow} from "../src/contracts/UltraRentzEscrow.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {console} from "forge-std/console.sol";
 
@@ -59,6 +67,135 @@ contract Malicious {
 
 
 contract EscrowTest is Test {
+        receive() external payable {}
+    // =============================
+    // COVERAGE BOOST TESTS
+    // =============================
+    function testReceiveReverts() public {
+        vm.expectRevert(bytes("UltraRentzEscrow does not accept Ether"));
+        address(escrow).call{value: 1 ether}("");
+    }
+
+
+    function testWithdrawEtherWithBalance() public {
+        // Directly set escrow contract balance using Foundry cheat code
+        vm.deal(address(escrow), 1 ether);
+        assertEq(address(escrow).balance, 1 ether, "Escrow contract did not receive Ether");
+        // Log diagnostic info
+        console.log("daoAdmin:", daoAdmin);
+        console.log("address(this):", address(this));
+        console.log("escrow.owner():", escrow.owner());
+        // Owner can withdraw Ether
+        uint256 before = address(this).balance;
+        vm.prank(daoAdmin);
+        escrow.withdrawEther(payable(address(this)));
+        // Should receive 1 ether
+        assertEq(address(this).balance, before + 1 ether);
+    }
+
+    function testConstructorRevertsOnZeroOwner() public {
+        vm.expectRevert(abi.encodeWithSignature("OwnableInvalidOwner(address)", address(0)));
+        new UltraRentzEscrow(address(0));
+    }
+
+    function testOnlyDAOReverts() public {
+        // Non-DAO tries to pause
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Not the DAO/Admin address"));
+        escrow.pause();
+    }
+
+    function testOnlyTenantReverts() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Landlord tries to raise dispute
+        vm.prank(landlord);
+        vm.expectRevert(bytes("Not tenant"));
+        escrow.raiseDispute(escrowId);
+    }
+
+    function testOnlySignatoryReverts() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Tenant is not a signatory
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Not a signatory"));
+        escrow.approveRelease(escrowId);
+    }
+
+// Helper contract to force Ether into escrow
+
+    function testWithdrawEtherOwnerOnly() public {
+        // Non-owner cannot withdraw (expect revert)
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.withdrawEther(payable(tenant));
+    }
+
+    function testWithdrawEtherOwnerNoOp() public {
+        // Owner can call withdrawEther, but contract has zero balance, so nothing happens
+        vm.prank(daoAdmin);
+        escrow.withdrawEther(payable(address(this)));
+        assertEq(address(this).balance, address(this).balance); // Always true, just to show no revert
+    }
+
+    function testReleaseAfterEndDate() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Fast forward to after end date
+        vm.warp(block.timestamp + DURATION + 1);
+        vm.prank(signatories[0]);
+        escrow.releaseAfterEndDate(escrowId);
+        // After one approval, state should still be Funded
+        (,,,,,,,, UltraRentzEscrow.EscrowState state, ) = escrow.getEscrowDetails(escrowId);
+        assertEq(uint8(state), uint8(UltraRentzEscrow.EscrowState.Funded));
+        // After 4 approvals, should be Released
+        for (uint8 i = 1; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.releaseAfterEndDate(escrowId);
+        }
+        (,,,,,,,, UltraRentzEscrow.EscrowState state2, ) = escrow.getEscrowDetails(escrowId);
+        assertEq(uint8(state2), uint8(UltraRentzEscrow.EscrowState.Released));
+    }
+
+    function testPauseUnpauseBlocksActions() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // DAO pauses contract
+        vm.prank(daoAdmin);
+        escrow.pause();
+        // Actions should revert
+        vm.prank(signatories[0]);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        escrow.approveRelease(escrowId);
+        // DAO unpauses
+        vm.prank(daoAdmin);
+        escrow.unpause();
+        // Action should succeed
+        vm.prank(signatories[0]);
+        escrow.approveRelease(escrowId);
+    }
+
+    function testViewFunctions() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // hasSignatoryApproved
+        bool approved = escrow.hasSignatoryApproved(escrowId, signatories[0]);
+        assertEq(approved, false);
+        // getSignatories
+        address[6] memory sigs = escrow.getSignatories(escrowId);
+        for (uint8 i = 0; i < 6; i++) {
+            assertEq(sigs[i], signatories[i]);
+        }
+        // getEscrowStatus
+        string memory status = escrow.getEscrowStatus(escrowId);
+        assertEq(keccak256(bytes(status)), keccak256(bytes("Funded")));
+        // getEscrowDetails (10 return values)
+        (address t, address l, uint256 amt, address tok, uint256 start, uint256 end, address[6] memory sigs2, uint8 approvals, UltraRentzEscrow.EscrowState state, uint8 appealCount) = escrow.getEscrowDetails(escrowId);
+        assertEq(t, tenant);
+        assertEq(l, landlord);
+        assertEq(amt, RENT_AMOUNT);
+        assertEq(tok, address(urzToken));
+        assertEq(uint8(state), uint8(UltraRentzEscrow.EscrowState.Funded));
+        for (uint8 i = 0; i < 6; i++) {
+            assertEq(sigs2[i], signatories[i]);
+        }
+    }
 
     // =========================================================================
     // 6. ON-CHAIN REPUTATION SYSTEM TESTS

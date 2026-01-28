@@ -25,6 +25,24 @@ contract UltraRentzStakingTest is Test {
         urzToken.approve(address(staking), STAKE_AMOUNT * 10);
     }
 
+    function testPauseAndUnpause() public {
+        // Only the contract owner (address(this)) can pause/unpause
+        vm.prank(address(this));
+        staking.pause();
+        vm.prank(address(this));
+        staking.unpause();
+    }
+
+
+    function testPendingReward() public {
+        vm.prank(user);
+        staking.stake(STAKE_AMOUNT);
+        // Simulate time passing
+        vm.warp(block.timestamp + 100 days);
+        uint256 reward = staking.pendingReward(user);
+        assertGt(reward, 0);
+    }
+
     function testStakeAndUnstake() public {
         vm.prank(user);
         staking.stake(STAKE_AMOUNT);

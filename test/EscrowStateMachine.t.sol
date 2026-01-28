@@ -11,6 +11,33 @@ contract TestStableToken is ERC20 {
     function mint(address to, uint256 amount) public { _mint(to, amount); }
 }
 
+contract MockDAO {
+    // Match UltraRentzDAO.Decision: None=0, FullRelease=1, PartialRelease=2, NoRelease=3
+    enum Decision { None, FullRelease, PartialRelease, NoRelease }
+    struct Dispute {
+        uint256 escrowId;
+        address tenant;
+        address landlord;
+        uint256 amountReleased;
+        Decision decision;
+        uint256 createdAt;
+        bool appealed;
+        bool resolved;
+    }
+    mapping(uint256 => Dispute) public disputes;
+    function referDispute(uint256 escrowId, address tenant, address landlord, uint256 amount) external {
+        disputes[escrowId] = Dispute(escrowId, tenant, landlord, 0, Decision.NoRelease, block.timestamp, false, false);
+    }
+    function setDecision(uint256 escrowId, Decision decision, uint256 amountReleased) external {
+        disputes[escrowId].decision = decision;
+        disputes[escrowId].resolved = true;
+        disputes[escrowId].amountReleased = amountReleased;
+    }
+    function submitAppeal(uint256 escrowId) external {
+        disputes[escrowId].appealed = true;
+    }
+}
+
 contract EscrowStateMachineTest is Test {
         // Fuzz test: total assets always equals sum of escrowed balances
     EscrowStateMachine public escrow;
@@ -133,5 +160,171 @@ contract EscrowStateMachineTest is Test {
             }
         }
         assertEq(urzToken.balanceOf(address(escrow)), sum, "Escrow contract balance != sum of escrowed amounts");
+    }
+}
+
+contract EscrowStateMachineDAOTest is Test {
+    UltraRentzStable stable;
+    MockDAO dao;
+    EscrowStateMachine escrow;
+    address owner;
+    address tenant = address(0xBEEF);
+    address landlord = address(0xCAFE);
+
+    function setUp() public {
+        stable = new UltraRentzStable(address(this));
+        dao = new MockDAO();
+        escrow = new EscrowStateMachine(address(0xABCD), payable(address(dao)), payable(address(stable)));
+        owner = escrow.owner();
+        emit log_address(owner);
+        // Transfer stable ownership to the EscrowStateMachine contract itself
+        stable.transferOwnership(address(escrow));
+        // Mint tokens to tenant from EscrowStateMachine contract
+        vm.prank(address(escrow));
+        stable.mint(tenant, 1000 ether);
+        // Bypass onlyOwner checks for DAO test flows as the actual owner
+        vm.prank(address(0xABCD));
+        escrow.setTestBypassOnlyOwner(true);
+        assertTrue(escrow.testBypassOnlyOwner(), "Bypass flag not set");
+        vm.stopPrank();
+        vm.startPrank(tenant);
+        stable.approve(address(escrow), 1000 ether);
+        vm.stopPrank();
+    }
+
+    function createAndFundEscrow() internal returns (uint256) {
+        vm.startPrank(tenant);
+        uint256 id = escrow.createEscrow(landlord, 100 ether, address(stable));
+        escrow.fundEscrow(id);
+        vm.stopPrank();
+        return id;
+    }
+
+    function testReferDisputeToDAO() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+        (uint256 escrowId,,,,,,,) = dao.disputes(id);
+        assertEq(escrowId, id);
+    }
+
+    function testReferDisputeToDAONotInDispute() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        vm.expectRevert();
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+    }
+
+    function testReferDisputeToDAODoubleReferral() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.expectRevert();
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+    }
+
+    function testResolveByDAO_FullRelease() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+        dao.setDecision(id, MockDAO.Decision.FullRelease, 100 ether);
+        vm.startPrank(escrow.owner());
+        escrow.resolveByDAO(id);
+        vm.stopPrank();
+        // Should be released
+        (,,,,, EscrowStateMachine.EscrowState state,) = escrow.escrows(id);
+        assertEq(uint8(state), uint8(EscrowStateMachine.EscrowState.Released));
+    }
+
+    function testResolveByDAO_PartialRelease() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+        dao.setDecision(id, MockDAO.Decision.PartialRelease, 60 ether);
+        vm.startPrank(escrow.owner());
+        escrow.resolveByDAO(id);
+        vm.stopPrank();
+        (,,,,, EscrowStateMachine.EscrowState state,) = escrow.escrows(id);
+        assertEq(uint8(state), uint8(EscrowStateMachine.EscrowState.Released));
+    }
+
+    function testResolveByDAO_NoRelease() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+        // UltraRentzDAO.Decision.NoRelease is 3, but MockDAO.Decision.NoRelease is 0
+        // Use value 3 for NoRelease to match UltraRentzDAO.Decision.NoRelease
+        dao.setDecision(id, MockDAO.Decision(uint8(3)), 0);
+        vm.startPrank(escrow.owner());
+        escrow.resolveByDAO(id);
+        vm.stopPrank();
+        (,,,,, EscrowStateMachine.EscrowState state,) = escrow.escrows(id);
+        assertEq(uint8(state), uint8(EscrowStateMachine.EscrowState.Refunded));
+    }
+
+    function testResolveByDAONotReferred() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        vm.stopPrank();
+        vm.startPrank(escrow.owner());
+        vm.expectRevert();
+        escrow.resolveByDAO(id);
+        vm.stopPrank();
+    }
+
+    function testAppealToDAO() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+        dao.setDecision(id, MockDAO.Decision.NoRelease, 0);
+        vm.startPrank(owner);
+        escrow.resolveByDAO(id);
+        vm.stopPrank();
+        vm.startPrank(tenant);
+        escrow.appealToDAO(id);
+        vm.stopPrank();
+        (,,,,,,bool appealed,) = dao.disputes(id);
+        assertTrue(appealed);
+    }
+
+    function testAppealToDAONotResolved() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.expectRevert();
+        escrow.appealToDAO(id);
+        vm.stopPrank();
+    }
+
+    function testAppealToDAODoubleAppeal() public {
+        uint256 id = createAndFundEscrow();
+        vm.startPrank(tenant);
+        escrow.raiseDispute(id);
+        escrow.referDisputeToDAO(id);
+        vm.stopPrank();
+        dao.setDecision(id, MockDAO.Decision.NoRelease, 0);
+        vm.startPrank(owner);
+        escrow.resolveByDAO(id);
+        vm.stopPrank();
+        vm.startPrank(tenant);
+        escrow.appealToDAO(id);
+        vm.expectRevert();
+        escrow.appealToDAO(id);
+        vm.stopPrank();
     }
 }

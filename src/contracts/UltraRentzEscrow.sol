@@ -136,7 +136,10 @@ contract UltraRentzEscrow is Ownable, ReentrancyGuard, Pausable {
     // Emergency function to withdraw stuck Ether (should never be needed, but for safety)
     function withdrawEther(address payable to) external onlyOwner {
         require(to != address(0), "Invalid address");
-        to.transfer(address(this).balance);
+        uint256 bal = address(this).balance;
+        if (bal > 0) {
+            to.transfer(bal);
+        }
     }
 
     // --- Core Functions (No changes needed) ---
