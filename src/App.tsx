@@ -1,27 +1,59 @@
-import { useState, useEffect } from "react";
-import RentDepositApp from "./components/RentDepositApp"; // This will now be your orchestrator
-import "./styles.css"; // Your existing custom styles
+import React, { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import TopHeader from "./layouts/TopHeader";
+import MobileMenu from "./components/MobileMenu";
+import HomePage from "./pages/HomePage";
+import RentDepositsPage from "./pages/RentDepositsPage";
+import SignatoryYieldPage from "./pages/SignatoryYieldPage";
+import DisputesPage from "./pages/DisputesPage";
+import DashboardPage from "./pages/DashboardPage";
+import "./styles.css";
 
-export default function App() {
-  const [theme, setTheme] = useState("dark");
+const AppContent: React.FC = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   return (
-    <div className="main-container">
-      {/* The Tailwind CSS CDN and config will now be in public/index.html */}
-
-      <button
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="theme-toggle"
+    <Router>
+      <div
+        className="min-h-screen"
+        style={{
+          backgroundColor: "var(--bg-color)",
+          color: "var(--text-color)",
+        }}
       >
-        {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
-      </button>
-      
-      {/* RentDepositApp temporarily commented out for troubleshooting app hang */}
-      <div style={{padding: '2rem', textAlign: 'center', color: 'gray'}}>App loads! Uncomment RentDepositApp to debug further.</div>
-    </div>
+        <TopHeader onMobileMenuToggle={toggleMobileMenu} />
+        <MobileMenu isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/rent-deposits" element={<RentDepositsPage />} />
+          <Route path="/signatory-yield" element={<SignatoryYieldPage />} />
+          <Route path="/disputes" element={<DisputesPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+};
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
   );
 }

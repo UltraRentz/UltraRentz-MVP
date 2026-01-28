@@ -1,19 +1,23 @@
 // src/components/RentDepositOrchestrator.tsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from "react";
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { web3Enable, web3Accounts, web3FromSource } from "@polkadot/extension-dapp";
+import {
+  web3Enable,
+  web3Accounts,
+  web3FromSource,
+} from "@polkadot/extension-dapp";
 import type { InjectedAccountWithMeta } from "@polkadot/extension-inject/types";
 import { ethers } from "ethers";
 
-import DepositForm from './DepositForm';
-import SignatoryForm from './SignatoryForm';
+import DepositForm from "./DepositForm";
+import SignatoryForm from "./SignatoryForm";
 
 interface RentDepositState {
   depositAmount: string;
   tenancyStartDate: string;
   tenancyDurationMonths: string;
   tenancyEnd: string;
-  paymentMode: 'fiat' | 'token';
+  paymentMode: "fiat" | "token";
   renterSignatories: string[];
   landlordSignatories: string[];
   landlordInput: string;
@@ -22,7 +26,7 @@ interface RentDepositState {
   polkadotAccount: InjectedAccountWithMeta | null;
   accountSource: any;
 
-  ethereumProvider: ethers.BrowserProvider | null;
+  ethereumProvider: ethers.providers.Web3Provider | null;
   ethereumSigner: ethers.Signer | null;
   ethereumAccount: string | null;
 
@@ -32,14 +36,14 @@ interface RentDepositState {
 
 const RentDepositOrchestrator: React.FC = () => {
   const [state, setState] = useState<RentDepositState>({
-    depositAmount: '',
-    tenancyStartDate: '',
-    tenancyDurationMonths: '3',
-    tenancyEnd: '',
-    paymentMode: 'token',
+    depositAmount: "",
+    tenancyStartDate: "",
+    tenancyDurationMonths: "3",
+    tenancyEnd: "",
+    paymentMode: "token",
     renterSignatories: [],
     landlordSignatories: [],
-    landlordInput: '',
+    landlordInput: "",
     api: null,
     polkadotAccount: null,
     accountSource: null,
@@ -51,20 +55,24 @@ const RentDepositOrchestrator: React.FC = () => {
   });
 
   const updateState = useCallback((updates: Partial<RentDepositState>) => {
-    setState(prevState => ({ ...prevState, ...updates }));
+    setState((prevState) => ({ ...prevState, ...updates }));
   }, []);
 
   useEffect(() => {
     const initializeApi = async () => {
       updateState({ paymentStatus: "Connecting to Polkadot..." });
       try {
-        const provider = new WsProvider('wss://rpc.polkadot.io');
+        const provider = new WsProvider("wss://rpc.polkadot.io");
         const apiInstance = await ApiPromise.create({ provider });
         await apiInstance.isReady;
         updateState({ api: apiInstance, paymentStatus: "Polkadot API ready." });
       } catch (error: any) {
         console.error("Failed to connect to Polkadot API:", error);
-        updateState({ paymentStatus: `Error connecting to Polkadot: ${error.message || "Unknown error"}` });
+        updateState({
+          paymentStatus: `Error connecting to Polkadot: ${
+            error.message || "Unknown error"
+          }`,
+        });
       }
     };
 
@@ -104,7 +112,11 @@ const RentDepositOrchestrator: React.FC = () => {
       });
     } catch (error: any) {
       console.error("Failed to connect wallet:", error);
-      updateState({ paymentStatus: `❌ Error connecting wallet: ${error.message || "Unknown error"}` });
+      updateState({
+        paymentStatus: `❌ Error connecting wallet: ${
+          error.message || "Unknown error"
+        }`,
+      });
     }
   }, [updateState]);
 
@@ -115,7 +127,7 @@ const RentDepositOrchestrator: React.FC = () => {
         return;
       }
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []); // Request access to accounts
       const signer = await provider.getSigner();
       const account = await signer.getAddress();
@@ -128,33 +140,55 @@ const RentDepositOrchestrator: React.FC = () => {
       });
     } catch (error: any) {
       console.error("Error connecting Ethereum wallet:", error);
-      updateState({ paymentStatus: `❌ Ethereum Wallet Error: ${error.message || "Unknown"}` });
+      updateState({
+        paymentStatus: `❌ Ethereum Wallet Error: ${
+          error.message || "Unknown"
+        }`,
+      });
     }
   }, [updateState]);
 
-  const setRenterSignatories = useCallback((newSignatories: string[]) => {
-    updateState({ renterSignatories: newSignatories });
-  }, [updateState]);
+  const setRenterSignatories = useCallback(
+    (newSignatories: string[]) => {
+      updateState({ renterSignatories: newSignatories });
+    },
+    [updateState]
+  );
 
-  const setLandlordSignatories = useCallback((newSignatories: string[]) => {
-    updateState({ landlordSignatories: newSignatories });
-  }, [updateState]);
+  const setLandlordSignatories = useCallback(
+    (newSignatories: string[]) => {
+      updateState({ landlordSignatories: newSignatories });
+    },
+    [updateState]
+  );
 
-  const setTenancyDurationMonths = useCallback((val: string) => {
-    updateState({ tenancyDurationMonths: val });
-  }, [updateState]);
+  const setTenancyDurationMonths = useCallback(
+    (val: string) => {
+      updateState({ tenancyDurationMonths: val });
+    },
+    [updateState]
+  );
 
-  const setEthereumProvider = useCallback((provider: ethers.BrowserProvider | null) => {
-    updateState({ ethereumProvider: provider });
-  }, [updateState]);
+  const setEthereumProvider = useCallback(
+    (provider: ethers.providers.Web3Provider | null) => {
+      updateState({ ethereumProvider: provider });
+    },
+    [updateState]
+  );
 
-  const setEthereumSigner = useCallback((signer: ethers.Signer | null) => {
-    updateState({ ethereumSigner: signer });
-  }, [updateState]);
+  const setEthereumSigner = useCallback(
+    (signer: ethers.Signer | null) => {
+      updateState({ ethereumSigner: signer });
+    },
+    [updateState]
+  );
 
-  const setEthereumAccount = useCallback((account: string | null) => {
-    updateState({ ethereumAccount: account });
-  }, [updateState]);
+  const setEthereumAccount = useCallback(
+    (account: string | null) => {
+      updateState({ ethereumAccount: account });
+    },
+    [updateState]
+  );
 
   return (
     <div className="main-container">
@@ -170,7 +204,9 @@ const RentDepositOrchestrator: React.FC = () => {
         tenancyEnd={state.tenancyEnd}
         setTenancyEnd={(val) => updateState({ tenancyEnd: val })}
         paymentMode={state.paymentMode}
-        setPaymentMode={(val) => updateState({ paymentMode: val as 'fiat' | 'token' })}
+        setPaymentMode={(val) =>
+          updateState({ paymentMode: val as "fiat" | "token" })
+        }
         fiatConfirmed={false}
         ethereumProvider={state.ethereumProvider}
         ethereumSigner={state.ethereumSigner}
@@ -188,36 +224,54 @@ const RentDepositOrchestrator: React.FC = () => {
         paymentTxHash={state.paymentTxHash}
         setPaymentTxHash={(val) => updateState({ paymentTxHash: val })}
         connectPolkadotWallet={connectPolkadotWallet}
-        darkMode={false}
       />
 
-      <div style={{ margin: '30px 0', borderBottom: '1px solid #eee' }}></div>
+      <div style={{ margin: "30px 0", borderBottom: "1px solid #eee" }}></div>
 
       <SignatoryForm
         type="Renter"
         signatories={state.renterSignatories}
         setSignatories={setRenterSignatories}
-        input={''}
+        input={""}
         setInput={() => {}}
       />
 
-      <div style={{ margin: '30px 0', borderBottom: '1px solid #eee' }}></div>
+      <div style={{ margin: "30px 0", borderBottom: "1px solid #eee" }}></div>
 
       <SignatoryForm
         type="Landlord"
         signatories={state.landlordSignatories}
         setSignatories={setLandlordSignatories}
-        input={''}
+        input={""}
         setInput={() => {}}
       />
 
       {state.paymentStatus && !state.paymentTxHash && (
-        <p className="status-text" style={{ marginTop: '20px', textAlign: 'center', color: state.paymentStatus.startsWith('Error') || state.paymentStatus.startsWith('❌') ? 'red' : 'green' }}>
+        <p
+          className="status-text"
+          style={{
+            marginTop: "20px",
+            textAlign: "center",
+            color:
+              state.paymentStatus.startsWith("Error") ||
+              state.paymentStatus.startsWith("❌")
+                ? "red"
+                : "green",
+          }}
+        >
           {state.paymentStatus}
         </p>
       )}
       {state.paymentTxHash && (
-        <p className="status-text" style={{ marginTop: '10px', textAlign: 'center', fontSize: '0.8em', wordBreak: 'break-all' }}>
+        <p
+          className="status-text"
+          style={{
+            marginTop: "10px",
+            textAlign: "center",
+            fontSize: "0.8em",
+            wordBreak: "break-all",
+          }}
+        >
           Transaction Hash: {state.paymentTxHash}
         </p>
       )}
@@ -225,7 +279,7 @@ const RentDepositOrchestrator: React.FC = () => {
       <button
         type="button"
         className="primary-button mt-4"
-        style={{ width: '100%', padding: '15px', fontSize: '1.1em' }}
+        style={{ width: "100%", padding: "15px", fontSize: "1.1em" }}
         onClick={() => {
           console.log("Final Setup Confirmed:", {
             depositAmount: state.depositAmount,
@@ -236,7 +290,9 @@ const RentDepositOrchestrator: React.FC = () => {
             landlordSignatories: state.landlordSignatories,
             landlordInput: state.landlordInput,
           });
-          alert("Overall Rent Deposit Setup Confirmed (stub for smart contract interaction).");
+          alert(
+            "Overall Rent Deposit Setup Confirmed (stub for smart contract interaction)."
+          );
         }}
         disabled={
           !state.api ||
