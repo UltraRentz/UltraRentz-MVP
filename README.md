@@ -73,6 +73,34 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 
 ---
 
+
+## 🛡️ Error Logging & Smart Contract Monitoring
+
+### Sentry (Frontend Error Logging)
+- Sentry is integrated to capture and report frontend errors in production. This helps the team proactively fix issues before users report them.
+- To enable Sentry, set your DSN in the `.env` file:
+   ```env
+   SENTRY_DSN=your_sentry_dsn_here
+   ```
+- The Sentry initialization is in `src/main.tsx`. Replace `YOUR_SENTRY_DSN_HERE` with your actual DSN or use the environment variable.
+
+
+### Tenderly (Smart Contract Monitoring with Foundry)
+- Tenderly is integrated with Foundry for real-time smart contract monitoring and alerting.
+- To enable Tenderly, set your credentials in the `.env` file:
+   ```env
+   TENDERLY_PROJECT=your_tenderly_project
+   TENDERLY_USERNAME=your_tenderly_username
+   TENDERLY_ACCESS_KEY=your_tenderly_access_key
+   ```
+- The Tenderly integration is configured in `foundry.toml`.
+- To push contracts or simulations to Tenderly, use the Tenderly CLI:
+   ```sh
+   forge script <script> --fork-url <RPC_URL> --broadcast --verify --tenderly
+   ```
+- For more, see [Tenderly Foundry Docs](https://docs.tenderly.co/monitoring/foundry-integration).
+
+---
 ## 🔧 Partner Tools Used
 
 - **Etherlink** — Deployed the UltraRentz Escrow contract and integrated blockchain infrastructure for fast, secure transactions on a Layer 2 testnet.  

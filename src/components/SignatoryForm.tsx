@@ -205,7 +205,7 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
             onChange={(e) => setCurrentSignatoryInput(e.target.value)}
             className={`form-input w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-400 shadow-sm transition-all duration-150 ${errorMessage ? 'border-red-500 ring-2 ring-red-300' : 'border-gray-300'}`}
             aria-invalid={!!errorMessage}
-            disabled={signatories.length >= 3}
+            disabled={signatories.length >= 3 && !currentSignatoryInput.trim()}
           />
         </div>
         <button
@@ -216,10 +216,27 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
               ? "bg-gray-300 text-gray-500 cursor-not-allowed"
               : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md"
           }`}
-          disabled={signatories.length >= 3 || verifying}
+          disabled={(signatories.length >= 3 && !currentSignatoryInput.trim()) || verifying || !currentSignatoryInput.trim() || pendingVerifications[currentSignatoryInput.trim().toLowerCase()]}
         >
           {verifying ? 'Sending...' : 'Add & Verify'}
         </button>
+      </div>
+
+      {/* Max signatories message */}
+      {signatories.length === 3 && (
+        <div className="text-green-700 text-sm mt-2 text-center flex items-center gap-2">
+          <span className="text-lg">✔️</span>
+          <span>You have reached your maximum number of signatories for this section.</span>
+        </div>
+      )}
+
+      {/* Warning if not enough signatories */}
+      {signatories.length < 3 && (
+        <div className="text-yellow-700 text-sm mt-2 text-center flex items-center gap-2">
+          <span className="text-lg">⚠️</span>
+          <span>Please add 3 unique {type.toLowerCase()} signatories to proceed.</span>
+        </div>
+      )}
       </div>
 
       {errorMessage && (

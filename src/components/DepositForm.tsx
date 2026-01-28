@@ -121,7 +121,8 @@ export default function DepositForm(props: any) {
   const validateAmount = (amt: string) => {
     if (!amt || isNaN(Number(amt))) return "Enter a valid deposit amount";
     const num = Number(amt);
-    if (num <= 0) return "Amount must be greater than zero";
+    if (num < 0) return "Amount cannot be negative";
+    // Allow zero deposit, but show a warning/note in UI
     return "";
   };
 
@@ -167,7 +168,10 @@ export default function DepositForm(props: any) {
       const walletToUse = embeddedWallet || externalWallet;
       if (!walletToUse) return setPaymentStatus("❌ Please connect a wallet first.");
 
-      const signer = await walletToUse.getEthersSigner();
+      // Use viem account for contract interactions (Privy v3+)
+      const viemAccount = walletToUse.getViemAccount();
+      if (!viemAccount) return setPaymentStatus("❌ Could not get wallet account for contract interaction.");
+      // TODO: Use viemAccount for contract interaction here. See viem docs for usage.
 
       // Accept both wallet and email for signatories, but contract only accepts wallets
       // For MVP: filter to wallet addresses for contract, but store emails for notifications
@@ -294,12 +298,14 @@ export default function DepositForm(props: any) {
           </button>
         </div>
 
-        {/* Fiat Currency Selector */}
-        {paymentMode === 'fiat' && (
-          <div className="mb-4 flex flex-col items-center">
-            <label className="font-semibold mb-1" htmlFor="fiat-currency-select">Choose Currency</label>
+        {/* Currency Selector (Fiat/Token) */}
+        <div className="mb-4 flex flex-col items-center">
+          <label className="font-semibold mb-1" htmlFor="currency-select">
+            {paymentMode === 'fiat' ? 'Choose Fiat' : 'Choose Token'}
+          </label>
+          {paymentMode === 'fiat' ? (
             <select
-              id="fiat-currency-select"
+              id="currency-select"
               className="w-48 p-2 rounded border border-blue-300 focus:ring-2 focus:ring-blue-400"
               value={fiatCurrency}
               onChange={e => setFiatCurrency(e.target.value)}
@@ -308,15 +314,9 @@ export default function DepositForm(props: any) {
                 <option key={fiat.code} value={fiat.code}>{fiat.label}</option>
               ))}
             </select>
-          </div>
-        )}
-
-        {/* Token Selector */}
-        {paymentMode === 'token' && (
-          <div className="mb-4 flex flex-col items-center">
-            <label className="font-semibold mb-1" htmlFor="token-select">Choose Token</label>
+          ) : (
             <select
-              id="token-select"
+              id="currency-select"
               className="w-48 p-2 rounded border border-green-300 focus:ring-2 focus:ring-green-400"
               value={tokenSymbol}
               onChange={e => setTokenSymbol(e.target.value)}
@@ -325,8 +325,13 @@ export default function DepositForm(props: any) {
                 <option key={token.symbol} value={token.symbol}>{token.name} ({token.symbol})</option>
               ))}
             </select>
-          </div>
-        )}
+          )}
+          {paymentMode === 'fiat' && (
+            <div className="mb-4 p-3 rounded bg-yellow-100 text-yellow-900 border border-yellow-400 text-center text-sm font-medium">
+              <span role="img" aria-label="compliance">🔒</span> UltraRentz is committed to full financial compliance. Fiat payments will be enabled as soon as our regulatory checks (KYB) are complete. Thank you for your patience!
+            </div>
+          )}
+        </div>
 
         {/* Deposit Amount Input */}
         <div className="mb-4">
@@ -334,6 +339,7 @@ export default function DepositForm(props: any) {
             Deposit Amount {paymentMode === 'fiat' ? `(${fiatCurrency})` : `(${tokenSymbol})`}
             <span title="How much is the deposit? This is the amount to be locked in escrow for the tenancy." className="text-indigo-500 cursor-pointer">ℹ️</span>
           </label>
+          <span className="text-xs text-blue-600 block mb-1">You may enter 0 for a zero deposit tenancy if agreed by all parties.</span>
           <input
             className={inputStyle('depositAmount')}
             placeholder={paymentMode === 'fiat' ? 'e.g. 450' : 'e.g. 1000'}
@@ -417,7 +423,7 @@ export default function DepositForm(props: any) {
             {activeTab === 'tenant' ? 'Tenant Signatories' : 'Landlord Signatories'} (Wallet or Email)
             <span title="Add up to 3 signatories (wallet addresses or emails) who must approve deposit release or receive notifications." className="text-indigo-500 cursor-pointer">ℹ️</span>
           </h3>
-          {(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).map((sig, idx) => (
+          {(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).map((sig, idx, arr) => (
             <div key={idx} className="flex items-center gap-2 mb-2">
               <input
                 className={inputStyle(`${activeTab}-sig-${idx}`)}
@@ -451,32 +457,45 @@ export default function DepositForm(props: any) {
                     setLandlordSignatories(arr.length ? arr : [""]);
                   }
                 }}
-                disabled={(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).length === 1}
+                disabled={arr.length === 1}
                 title="Remove signatory"
               >
                 Remove
               </button>
+              {/* Show Verify button only if fewer than 3 signatories */}
+              {arr.length < 3 && (
+                <button
+                  type="button"
+                  className="px-2 py-1 rounded font-bold border-2 border-blue-600 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-white text-sm shadow hover:bg-blue-200 dark:hover:bg-blue-600 transition"
+                  onClick={() => alert(validateSignatory(sig) ? 'Invalid signatory' : 'Signatory valid!')}
+                  title="Verify signatory"
+                >
+                  Verify
+                </button>
+              )}
+              {/* Add Signatory button for every input, always visible but disabled if 3 signatories exist */}
               <button
                 type="button"
-                className="px-2 py-1 rounded font-bold border-2 border-blue-600 bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-white text-sm shadow hover:bg-blue-200 dark:hover:bg-blue-600 transition"
-                onClick={() => alert(validateSignatory(sig) ? 'Invalid signatory' : 'Signatory valid!')}
-                title="Verify signatory"
+                className={`ml-2 px-3 py-1 rounded font-semibold ${arr.length < 3 ? 'bg-indigo-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                onClick={() => {
+                  if (arr.length < 3) {
+                    if (activeTab === 'tenant') setTenantSignatories([...tenantSignatories, ""]);
+                    else setLandlordSignatories([...landlordSignatories, ""]);
+                  }
+                }}
+                disabled={arr.length >= 3}
+                title={arr.length >= 3 ? 'Maximum 3 signatories allowed' : 'Add another signatory'}
               >
-                Verify
+                Add Signatory
               </button>
             </div>
           ))}
-          {(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).length < 3 && (
-            <button
-              type="button"
-              className="mt-2 px-3 py-1 rounded bg-indigo-500 text-white font-semibold"
-              onClick={() => {
-                if (activeTab === 'tenant') setTenantSignatories([...tenantSignatories, ""]);
-                else setLandlordSignatories([...landlordSignatories, ""]);
-              }}
-            >
-              Add Signatory
-            </button>
+          {/* Show message if max signatories reached */}
+          {(activeTab === 'tenant' ? tenantSignatories : landlordSignatories).length === 3 && (
+            <div className="text-green-700 text-sm mt-2 text-center flex items-center gap-2">
+              <span className="text-lg">✔️</span>
+              <span>You have reached your maximum number of signatories for this section.</span>
+            </div>
           )}
         </div>
 
@@ -489,6 +508,8 @@ export default function DepositForm(props: any) {
           </div>
         )}
 
+
+        {/* Require exactly 3 tenant and 3 landlord signatories to proceed */}
         {wallets.length === 0 ? (
           <button onClick={login} className="bg-blue-600 text-white px-4 py-2 rounded w-full mt-4 hover:bg-blue-700">
             Login / Create Wallet
@@ -497,11 +518,17 @@ export default function DepositForm(props: any) {
           <>
             <button 
               onClick={handlePayToken} 
-              disabled={isProcessingPayment || !allValid} 
+              disabled={isProcessingPayment || !allValid || tenantSignatories.length !== 3 || landlordSignatories.length !== 3} 
               className="bg-green-600 text-white px-4 py-2 rounded w-full mt-4 hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
               Lock Deposit in Escrow
             </button>
+            {(tenantSignatories.length !== 3 || landlordSignatories.length !== 3) && (
+              <div className="text-yellow-700 text-sm mt-2 text-center flex items-center gap-2">
+                <span className="text-lg">⚠️</span>
+                <span>Please add 3 tenant and 3 landlord signatories before proceeding.</span>
+              </div>
+            )}
             <button 
               onClick={logout} 
               className="bg-red-500 text-white px-4 py-2 rounded w-full mt-2 hover:bg-red-600"

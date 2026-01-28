@@ -39,26 +39,36 @@ export default function EscrowDashboard({ email, onSelectEscrow, onNewProperty }
 
   return (
     <div className="max-w-xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-      <h2 className="text-2xl font-bold mb-6 text-indigo-700 dark:text-indigo-300">
-        Welcome back. Which property are you securing today?
+      <h2 className="text-2xl font-bold mb-2 text-indigo-700 dark:text-indigo-300 text-center">
+        Protect. Grow. Resolve.
       </h2>
-      <div className="flex flex-col gap-4">
-        {escrows.map((escrow) => (
-          <button
-            key={escrow.escrowId}
-            className="w-full px-4 py-3 bg-indigo-100 dark:bg-indigo-900 rounded-lg text-lg font-semibold hover:bg-indigo-200 dark:hover:bg-indigo-800 transition"
-            onClick={() => onSelectEscrow(escrow.escrowId)}
-          >
-            {escrow.address || `Escrow #${escrow.escrowId}`}
-          </button>
-        ))}
-        <button
-          className="w-full px-4 py-3 bg-green-100 dark:bg-green-900 rounded-lg text-lg font-semibold hover:bg-green-200 dark:hover:bg-green-800 transition mt-2"
-          onClick={onNewProperty}
-        >
-          + New Property
-        </button>
+      <p className="mb-6 text-lg text-gray-700 dark:text-gray-200 text-center">
+        Your secure tenancy deposit starts here.
+      </p>
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-100">Your Existing Deposits</h3>
+        {escrows.length === 0 ? (
+          <div className="text-gray-500 dark:text-gray-400 mb-4">You have no deposits yet.</div>
+        ) : (
+          <div className="flex flex-col gap-4 mb-4">
+            {escrows.map((escrow) => (
+              <button
+                key={escrow.escrowId}
+                className="w-full px-4 py-3 bg-indigo-100 dark:bg-indigo-900 rounded-lg text-lg font-semibold hover:bg-indigo-200 dark:hover:bg-indigo-800 transition"
+                onClick={() => onSelectEscrow(escrow.escrowId)}
+              >
+                {escrow.address || `Escrow #${escrow.escrowId}`}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+      <button
+        className="w-full px-4 py-3 bg-green-100 dark:bg-green-900 rounded-lg text-lg font-semibold hover:bg-green-200 dark:hover:bg-green-800 transition mt-2"
+        onClick={onNewProperty}
+      >
+        + Start New Deposit
+      </button>
     </div>
   );
 }

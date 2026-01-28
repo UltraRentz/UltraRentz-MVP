@@ -40,11 +40,8 @@ app.post('/api/send-notification', async (req, res) => {
   }
 });
 
-// Start server (customize port as needed)
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Email server running on port ${PORT}`);
-});
+
+module.exports = app;
 
 // Example usage (POST JSON):
 // {

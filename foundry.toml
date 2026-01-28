@@ -4,3 +4,9 @@ src = "src"
 out = "out"
 test = "test"
 libs = ["lib"]
+
+# Tenderly integration
+[tenderly]
+project = "${TENDERLY_PROJECT}"
+username = "${TENDERLY_USERNAME}"
+access_key = "${TENDERLY_ACCESS_KEY}"

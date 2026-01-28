@@ -3,8 +3,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { sendEmail } = require('./sendgrid');
-const { generateApprovalToken, storeApprovalToken } = require('./utils/approvalToken');
+const { sendEmail } = require('./sendgrid.cjs');
+const { generateApprovalToken, storeApprovalToken } = require('./utils/approvalToken.cjs');
 
 // POST /api/send-deposit-notification
 router.post('/send-deposit-notification', async (req, res) => {

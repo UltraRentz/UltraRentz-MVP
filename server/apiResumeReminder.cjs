@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { sendEmail } = require('./sendgrid');
+const { sendEmail } = require('./sendgrid.cjs');
 
 // In-memory store for demo; use DB in production
 const resumeReminders = {}; // { email: { address, name, lastStep, timestamp, sent } }

@@ -1,11 +1,11 @@
 // server/index.js
 const express = require('express');
 const bodyParser = require('body-parser');
-const accountAbstractionRoutes = require('./routes/accountAbstractionRoutes');
-const approvalActionRoutes = require('./routes/approvalActionRoutes');
-const apiSendDepositNotification = require('./apiSendDepositNotification');
-const email = require('./email');
-const apiResumeReminder = require('./apiResumeReminder');
+const accountAbstractionRoutes = require('./routes/accountAbstractionRoutes.cjs');
+const approvalActionRoutes = require('./routes/approvalActionRoutes.cjs');
+const apiSendDepositNotification = require('./apiSendDepositNotification.cjs');
+const email = require('./email.cjs');
+const apiResumeReminder = require('./apiResumeReminder.cjs');
 require('dotenv').config();
 
 const app = express();

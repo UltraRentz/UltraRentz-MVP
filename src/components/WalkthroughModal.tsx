@@ -12,15 +12,23 @@ const steps = [
   },
   {
     title: "Step 1: Enter Deposit Details",
-    description: "Fill in the deposit amount, tenancy dates, and landlord wallet. You can pay in GBP or URZ tokens."
+    description: "Enter the deposit amount, tenancy dates, and landlord details. You can pay in GBP, EUR, USD, or a range of supported digital currencies—choose what works best for you. No technical or crypto knowledge required."
   },
   {
-    title: "Step 2: Add Signatories",
-    description: "Add up to 3 tenant and 3 landlord signatories. These are the people who must approve the deposit release."
+    title: "Step 2: Add People to Approve",
+    description: "Add the people (tenants and landlords) who will need to approve the deposit release at the end of the tenancy (signatory). You can add up to 3 tenants and 3 landlords."
   },
   {
-    title: "Step 3: Finalize & Lock Deposit",
-    description: "Once all details are filled and signatories added, lock your deposit in escrow."
+    title: "Step 3: Finalize & Secure Deposit",
+    description: "Once you’ve entered all the details and added everyone who needs to approve, your deposit will be safely held until the end of the tenancy."
+  },
+  {
+    title: "Step 4: How Your Deposit is Released",
+    description: "At the end of the tenancy, if there’s no dispute, your deposit is released when at least 4 out of 6 people (tenants and landlords) agree. This keeps things fair and simple."
+  },
+  {
+    title: "Step 5: What Happens if There’s a Dispute?",
+    description: "If there’s a disagreement, only the disputed amount is held—the rest of your deposit is released right away. Qualified independent reviewers (decentralised jurors) will look at the dispute and decide how the held amount should be returned."
   },
   {
     title: "Need Help?",

@@ -1,8 +1,8 @@
-// server/routes/approvalActionRoutes.js
+// server/routes/approvalActionRoutes.cjs
 const express = require('express');
 const router = express.Router();
-const { validateApprovalToken } = require('../utils/approvalToken');
-const { approveEscrow } = require('../accountAbstraction');
+const { validateApprovalToken } = require('../utils/approvalToken.cjs');
+const { approveEscrow } = require('../accountAbstraction.cjs');
 
 // POST /api/approve-action
 router.post('/approve-action', async (req, res) => {
