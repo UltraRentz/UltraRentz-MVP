@@ -4,7 +4,11 @@ const { ethers } = require('ethers');
 const { Bundler, PaymasterAPI, SimpleAccountAPI } = require('@account-abstraction/sdk');
 
 // In production, use a secure DB and encryption for private keys!
-const signatoryAccounts = {}; // { email: [ { privateKey, address, escrowId } ] }
+const signatoryAccounts = {
+  "test@example.com": [
+    { privateKey: "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", address: "0x123...456", escrowId: "ESC-8821" }
+  ]
+}; // { email: [ { privateKey, address, escrowId } ] }
 
 const BUNDLER_URL = process.env.BUNDLER_URL;
 const PAYMASTER_URL = process.env.PAYMASTER_URL;

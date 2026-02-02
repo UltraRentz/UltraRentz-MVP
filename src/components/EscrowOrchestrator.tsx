@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import EscrowDashboard from "./EscrowDashboard";
 import RentDepositApp from "./RentDepositApp";
+import EscrowDetail from "./EscrowDetail";
 
 // This is a simple demo. In production, get the email from auth/session.
 export default function EscrowOrchestrator() {
   const [email, setEmail] = useState("");
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [selectedEscrow, setSelectedEscrow] = useState<string | null>(null);
   const [showNewProperty, setShowNewProperty] = useState(false);
 
-  if (!email) {
+  if (!isSubmitted) {
     return (
       <div className="max-w-md mx-auto mt-16 p-8 bg-white dark:bg-gray-800 rounded-lg shadow">
         <h2 className="text-2xl font-bold mb-4">Sign In</h2>
@@ -21,7 +23,13 @@ export default function EscrowOrchestrator() {
         />
         <button
           className="w-full bg-indigo-600 text-white py-2 rounded font-semibold"
-          onClick={() => setEmail(email.trim())}
+          onClick={() => {
+            const trimmed = email.trim();
+            if (trimmed.includes("@")) {
+              setEmail(trimmed);
+              setIsSubmitted(true);
+            }
+          }}
           disabled={!email.includes("@")}
         >
           Continue
@@ -30,17 +38,24 @@ export default function EscrowOrchestrator() {
     );
   }
 
-  if (!selectedEscrow && !showNewProperty) {
+  if (showNewProperty) {
+    return <RentDepositApp />;
+  }
+
+  if (selectedEscrow) {
     return (
-      <EscrowDashboard
-        email={email}
-        onSelectEscrow={setSelectedEscrow}
-        onNewProperty={() => setShowNewProperty(true)}
+      <EscrowDetail 
+        escrowId={selectedEscrow} 
+        onBack={() => setSelectedEscrow(null)} 
       />
     );
   }
 
-  // If user selects an escrow, show the main app for that escrow
-  // If "New Property", show the main app in new property mode
-  return <RentDepositApp />;
+  return (
+    <EscrowDashboard
+      email={email}
+      onSelectEscrow={setSelectedEscrow}
+      onNewProperty={() => setShowNewProperty(true)}
+    />
+  );
 }
