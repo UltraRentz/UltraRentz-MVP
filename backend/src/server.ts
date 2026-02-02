@@ -13,12 +13,20 @@ import depositRoutes from "./routes/deposits";
 import yieldRoutes from "./routes/yields";
 import yieldDepositRoutes from "./routes/yieldDeposits";
 import disputeRoutes from "./routes/disputes";
+import passportRoutes from "./routes/passport";
+import auditTrailRoutes from "./routes/auditTrail";
+import votesRoutes from "./routes/votes";
+import evidenceRoutes from "./routes/evidence";
+import disputeMessagesRoutes from "./routes/disputeMessages";
 
 // Import middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 // Import event listener
 import { startEventListener } from "./services/eventListener";
+
+// Import and start notification scheduler
+import { startNotificationScheduler } from "./services/notificationScheduler";
 
 // Load environment variables
 dotenv.config();
@@ -73,6 +81,9 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from the "uploads" directory
+app.use("/uploads", express.static("uploads"));
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
@@ -89,6 +100,11 @@ app.use("/api/deposits", depositRoutes);
 app.use("/api/yields", yieldRoutes);
 app.use("/api/yield-deposits", yieldDepositRoutes);
 app.use("/api/disputes", disputeRoutes);
+app.use("/api", passportRoutes);
+app.use("/api/audit-trail", auditTrailRoutes);
+app.use("/api/votes", votesRoutes);
+app.use("/api/evidence", evidenceRoutes);
+app.use("/api/dispute-messages", disputeMessagesRoutes);
 
 // Socket.io connection handling
 io.on("connection", (socket) => {
@@ -139,6 +155,9 @@ const startServer = async () => {
 
     // Start event listener
     await startEventListener(io);
+
+    // Start notification scheduler
+    startNotificationScheduler();
 
     // Start HTTP server
     server.listen(PORT, () => {

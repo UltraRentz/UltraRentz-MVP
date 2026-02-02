@@ -1,23 +1,74 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useHelpFAQModal } from './useHelpFAQModal';
+import { sendVerificationEmail } from '../utils/emailVerification';
+import { startKYC, simulateKYCResult } from '../utils/kycProvider';
+import { isDisposableEmail } from '../utils/disposableEmails';
 // Removed isAddress as we're now using email for input
 
 interface SignatoryFormProps {
   type: 'Renter' | 'Landlord';
   signatories: string[]; // This will now store email addresses
   setSignatories: (newSignatories: string[]) => void;
-  // input and setInput are no longer directly used by the parent,
-  // but kept for interface consistency if needed elsewhere.
-  input: string; 
+  otherGroupSignatories: string[];
+  escrowId?: string; // Optional, for polling verification status
+  input: string;
   setInput: (value: string) => void;
 }
+
 
 const SignatoryForm: React.FC<SignatoryFormProps> = ({
   type,
   signatories,
   setSignatories,
+  otherGroupSignatories,
+  escrowId,
+  input,
+  setInput,
 }) => {
   const [currentSignatoryInput, setCurrentSignatoryInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [pendingVerifications, setPendingVerifications] = useState<{[email: string]: boolean}>({});
+  const [verified, setVerified] = useState<{[email: string]: boolean}>({});
+    // Poll backend for real verification status if escrowId is provided
+    useEffect(() => {
+      if (!escrowId) return;
+      let interval: NodeJS.Timeout;
+      const poll = async () => {
+        for (const email of signatories) {
+          try {
+            const res = await fetch(`/api/escrows-by-email?email=${encodeURIComponent(email)}`);
+            if (res.ok) {
+              const data = await res.json();
+              const found = data.escrows && data.escrows.some((e: any) => e.escrowId === escrowId);
+              setVerified((prev) => ({ ...prev, [email]: found }));
+            }
+          } catch (err) {
+            // Ignore errors for now
+          }
+        }
+      };
+      poll();
+      interval = setInterval(poll, 20000); // poll every 20s
+      return () => clearInterval(interval);
+    }, [escrowId, signatories]);
+  const [kycStatus, setKycStatus] = useState<{[email: string]: 'pending' | 'verified' | 'failed'}>({});
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    const draft = window.localStorage.getItem(`urz_signatories_${type}`);
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (Array.isArray(parsed)) setSignatories(parsed);
+      } catch {}
+    }
+  }, [setSignatories, type]);
+
+  // Save draft to localStorage on signatories change
+  useEffect(() => {
+    window.localStorage.setItem(`urz_signatories_${type}` , JSON.stringify(signatories));
+  }, [signatories, type]);
 
   // Basic email validation regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,113 +78,100 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
     setErrorMessage(null);
   }, [currentSignatoryInput]);
 
-  const handleAddSignatory = useCallback(() => {
-    setErrorMessage(null); // Clear previous errors
+  // Simulate user clicking verification link (MVP)
+  const simulateVerification = async (email: string) => {
+    setTimeout(() => {
+      setVerified((prev) => ({ ...prev, [email]: true }));
+      setPendingVerifications((prev) => {
+        const copy = { ...prev };
+        delete copy[email];
+        return copy;
+      });
+    }, 1000);
+  };
 
-    const trimmedInput = currentSignatoryInput.trim().toLowerCase(); // Normalize email to lowercase
+  const maxSignatories = 3;
+  const canAdd = signatories.length < maxSignatories && currentSignatoryInput.trim() !== '';
 
-    if (!trimmedInput) {
-      setErrorMessage("Signatory email cannot be empty.");
+  const handleAdd = () => {
+    const email = currentSignatoryInput.trim().toLowerCase();
+    if (!emailRegex.test(email)) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
-
-    // Basic email format validation
-    if (!emailRegex.test(trimmedInput)) {
-      setErrorMessage("Invalid email address format.");
+    if (isDisposableEmail(email)) {
+      setErrorMessage('Disposable/temporary email addresses are not allowed.');
       return;
     }
-
-    if (signatories.length >= 3) {
-      setErrorMessage(`You can add a maximum of 3 ${type} signatories.`);
+    if (signatories.includes(email)) {
+      setErrorMessage('This email is already added.');
       return;
     }
-
-    if (signatories.includes(trimmedInput)) {
-      setErrorMessage("This signatory email has already been added.");
+    if (otherGroupSignatories && otherGroupSignatories.includes(email)) {
+      setErrorMessage('This email is already used in the other group.');
       return;
     }
+    if (signatories.length >= maxSignatories) {
+      setErrorMessage(`You can only add up to ${maxSignatories} people.`);
+      return;
+    }
+    setPendingVerifications((prev) => ({ ...prev, [email]: true }));
+    setErrorMessage('A verification email has been sent. Please verify to add.');
+    // Simulate sending verification email and user clicking it
+    simulateVerification(email);
+    setCurrentSignatoryInput('');
+  };
 
-    setSignatories([...signatories, trimmedInput]);
-    setCurrentSignatoryInput(''); // Clear input field
-  }, [currentSignatoryInput, signatories, setSignatories, type, emailRegex]);
-
-  const handleRemoveSignatory = useCallback((indexToRemove: number) => {
-    setSignatories(signatories.filter((_, index) => index !== indexToRemove));
-    setErrorMessage(null); // Clear error after removal
-  }, [signatories, setSignatories]);
+  const handleRemove = (email: string) => {
+    setSignatories(signatories.filter(e => e !== email));
+    setVerified((prev) => {
+      const copy = { ...prev };
+      delete copy[email];
+      return copy;
+    });
+    setPendingVerifications((prev) => {
+      const copy = { ...prev };
+      delete copy[email];
+      return copy;
+    });
+  };
 
   return (
-    <div className="form-section bg-white p-6 rounded-lg shadow-sm space-y-4 border border-gray-200">
-
-      {/* Information about 4-of-6 rule */}
-      <p className="text-blue-700 text-sm p-2 bg-blue-50 rounded-md border border-blue-200">
-        ℹ️ **Important:** For the rent deposit to be released at the end of the tenancy, a consensus of **4 out of 6 total signatories** (from both Renter and Landlord sides combined) will be required to approve the release.
-      </p>
-
-      <div className="form-group flex flex-col">
-        <div className="flex-grow">
-          <label htmlFor={`${type.toLowerCase()}Signatory`} className="block text-sm font-medium text-gray-700 mb-1">
-            {type} Email Address
-          </label>
-          <input
-            type="email" // Changed input type to email
-            id={`${type.toLowerCase()}Signatory`}
-            placeholder={`Enter ${type.toLowerCase()}'s email address`}
-            value={currentSignatoryInput}
-            onChange={(e) => setCurrentSignatoryInput(e.target.value)}
-            className="form-input w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
-            disabled={signatories.length >= 3} // Disable input if max signatories reached
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleAddSignatory}
-          className={`py-2 px-4 rounded-md text-sm font-medium transition duration-150 ease-in-out ${
-            signatories.length >= 3
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md"
-          }`}
-          disabled={signatories.length >= 3}
-        >
-          Add Signatory
-        </button>
+    <div>
+      <h3>People who must approve ({type}) <span style={{fontWeight: 'normal'}}>(max {maxSignatories})</span></h3>
+      <div style={{fontSize: '0.97em', color: '#555', marginBottom: 8}}>
+        Add the email addresses of everyone who needs to approve or sign off on this deposit (for example: yourself, your tenant, or a co-owner).
       </div>
-
-      {errorMessage && (
-        <p className="text-red-600 text-sm mt-2 text-center">{errorMessage}</p>
-      )}
-
-      {/* Collusion Prevention Disclaimer for MVP */}
-      <p className="text-orange-600 text-sm mt-2 p-2 bg-orange-50 rounded-md border border-orange-200">
-        ⚠️ **Important for Signatories:** Each signatory must be a unique individual. Using multiple email addresses for the same person is against the terms of service and may invalidate the agreement.
-      </p>
-
-      {signatories.length > 0 && (
-        <div className="signatories-list mt-4 space-y-2">
-          <h3 className="text-lg font-medium text-gray-700">Current {type} Signatories:</h3>
-          <ul className="bg-gray-50 p-3 rounded-md border border-gray-200">
-            {signatories.map((signer, index) => (
-              <li key={index} className="flex items-center justify-between py-2 border-b last:border-b-0 border-gray-100">
-                <span className="font-mono text-sm text-gray-800 break-all pr-2">{signer}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveSignatory(index)}
-                  className="ml-2 text-red-500 hover:text-red-700 text-xs font-medium"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-       {signatories.length === 0 && (
-        <p className="text-gray-500 text-sm text-center mt-4">
-          No {type} signatories added yet. Please add at least one.
-        </p>
-      )}
+      <ul>
+        {signatories.map((email) => (
+          <li key={email}>
+            {email} {verified[email] ? <span style={{color: 'green'}}>(Verified)</span> : <span style={{color: 'orange'}}>(Pending verification)</span>}
+            <button
+              type="button"
+              onClick={() => handleRemove(email)}
+              style={{ marginLeft: 8 }}
+              aria-label={`Remove ${email}`}
+            >Remove</button>
+          </li>
+        ))}
+      </ul>
+      <input
+        type="email"
+        value={currentSignatoryInput}
+        onChange={e => setCurrentSignatoryInput(e.target.value)}
+        placeholder="Enter email address"
+        disabled={signatories.length >= maxSignatories}
+      />
+      <button
+        type="button"
+        onClick={handleAdd}
+        disabled={!canAdd}
+        style={{ marginLeft: 8 }}
+      >Add</button>
+      {errorMessage && <div style={{color: 'red', marginTop: 8}}>{errorMessage}</div>}
     </div>
   );
 };
 
 export default SignatoryForm;
+

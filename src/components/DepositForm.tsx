@@ -1,69 +1,40 @@
-import { useState, useEffect, useCallback } from "react";
-import { ethers } from "ethers";
-
-const URZ_CONTRACT_ADDRESS = "0xB1c01f7e6980AbdbAec0472C0e1A58EB46D39f3C";
-const URZ_CONTRACT_ABI = [
-  "function name() view returns (string)",
-  "function symbol() view returns (string)",
-  "function decimals() view returns (uint8)",
-  "function totalSupply() view returns (uint256)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function transfer(address recipient, uint256 amount) returns (bool)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function transferFrom(address from, address to, uint256 value) returns (bool)",
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
-  "event Approval(address indexed owner, address indexed spender, uint256 value)",
-];
-const URZ_DECIMALS = 18;
-
-const POPULAR_TOKENS = [
-  { name: "USD Coin", symbol: "USDC" },
-  { name: "Tether", symbol: "USDT" },
-  { name: "DAI Stablecoin", symbol: "DAI" },
-  { name: "Wrapped Ether", symbol: "WETH" },
-  { name: "UltraRentz Token", symbol: "URZ" },
-];
-
-const POPULAR_FIATS = [
-  { name: "US Dollar", symbol: "USD" },
-  { name: "Euro", symbol: "EUR" },
-  { name: "British Pound", symbol: "GBP" },
-  { name: "Japanese Yen", symbol: "JPY" },
-  { name: "Swiss Franc", symbol: "CHF" },
-];
+import React, { useState, useCallback } from 'react';
+import { ethers } from 'ethers';
+// import { create4337Account } from '../utils/accountAbstraction';
+// import { sendDepositNotification } from '../utils/emailNotification';
+// import HelpFAQModal from "./HelpFAQModal";
+// import TransakDeposit from "./TransakDeposit";
 
 interface DepositFormProps {
   depositAmount: string;
-  setDepositAmount: (value: string) => void;
+  setDepositAmount: (val: string) => void;
   tenancyStartDate: string;
-  setTenancyStartDate: (value: string) => void;
+  setTenancyStartDate: (val: string) => void;
   tenancyDurationMonths: string;
-  setTenancyDurationMonths: (value: string) => void;
+  setTenancyDurationMonths: (val: string) => void;
   tenancyEnd: string;
-  setTenancyEnd: (value: string) => void;
-  paymentMode: "fiat" | "token";
-  setPaymentMode: (value: "fiat" | "token") => void;
+  setTenancyEnd: (val: string) => void;
+  paymentMode: 'fiat' | 'token';
+  setPaymentMode: (val: 'fiat' | 'token') => void;
   fiatConfirmed: boolean;
-  ethereumProvider: ethers.providers.Web3Provider | null;
-  ethereumSigner: ethers.Signer | null;
+  ethereumProvider: any;
+  ethereumSigner: any;
   ethereumAccount: string | null;
-  setEthereumProvider: (provider: ethers.providers.Web3Provider | null) => void;
-  setEthereumSigner: (signer: ethers.Signer | null) => void;
-  setEthereumAccount: (account: string | null) => void;
+  setEthereumProvider: (val: any) => void;
+  setEthereumSigner: (val: any) => void;
+  setEthereumAccount: (val: string | null) => void;
   landlordInput: string;
   setLandlordInput: (val: string) => void;
   paymentStatus: string | null;
   setPaymentStatus: (val: string | null) => void;
   paymentTxHash: string | null;
   setPaymentTxHash: (val: string | null) => void;
-  connectEthereumWallet: () => Promise<void>;
-  connectPolkadotWallet?: () => Promise<void>; // ✅ Added
-  api?: any;
-  polkadotAccount?: string | null;
+  connectEthereumWallet: () => void;
+  polkadotAccount: string | null;
 }
 
-export default function DepositForm({
+
+const DepositForm: React.FC<DepositFormProps> = ({
   depositAmount,
   setDepositAmount,
   tenancyStartDate,
@@ -73,15 +44,14 @@ export default function DepositForm({
   tenancyEnd,
   setTenancyEnd,
   paymentMode,
-  // Unused props safely prefixed with underscore:
-  setPaymentMode: _setPaymentMode,
-  fiatConfirmed: _fiatConfirmed,
-  setEthereumProvider: _setEthereumProvider,
-  setEthereumSigner: _setEthereumSigner,
-  setEthereumAccount: _setEthereumAccount,
+  setPaymentMode,
+  fiatConfirmed,
   ethereumProvider,
   ethereumSigner,
   ethereumAccount,
+  setEthereumProvider,
+  setEthereumSigner,
+  setEthereumAccount,
   landlordInput,
   setLandlordInput,
   paymentStatus,
@@ -89,242 +59,142 @@ export default function DepositForm({
   paymentTxHash,
   setPaymentTxHash,
   connectEthereumWallet,
-  connectPolkadotWallet: _connectPolkadotWallet, // ✅ Added
-  polkadotAccount: _polkadotAccount, // safely ignore this unused prop
-}: DepositFormProps) {
-  const [selectedToken, setSelectedToken] = useState("URZ");
-  const [selectedFiat, setSelectedFiat] = useState("USD");
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  polkadotAccount
+}) => {
+  const [error, setError] = useState<string | null>(null);
 
-  const inputStyle = `w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white border-gray-300`;
+  const [currencyType, setCurrencyType] = useState<'card' | 'bank' | 'urz' | 'token'>('card');
+  const [fiatCurrency, setFiatCurrency] = useState('GBP');
+  const [tokenSymbol, setTokenSymbol] = useState('ETH');
 
-  useEffect(() => {
-    if (paymentMode === "token") {
-      setPaymentStatus(null);
-      setPaymentTxHash(null);
-      setIsProcessingPayment(false);
+  const bankOptions = [
+    { code: 'GBP', name: 'British Pound' },
+    { code: 'USD', name: 'US Dollar' },
+    { code: 'EUR', name: 'Euro' },
+  ];
+  const tokenOptions = [
+    { symbol: 'ETH', name: 'Ethereum' },
+    { symbol: 'USDT', name: 'Tether' },
+    { symbol: 'USDC', name: 'USD Coin' },
+    { symbol: 'DAI', name: 'Dai' },
+    { symbol: 'BNB', name: 'Binance Coin' },
+  ];
+
+  const handleDepositChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDepositAmount(value);
+    if (!value || isNaN(Number(value)) || Number(value) <= 0) {
+      setError('Deposit amount must be greater than zero');
+    } else {
+      setError(null);
     }
-  }, [paymentMode]);
+  };
 
-  const handlePayToken = useCallback(async () => {
-    setPaymentStatus(null);
-    setPaymentTxHash(null);
-    setIsProcessingPayment(true);
+  // British date format helpers
+  const toBritishDate = (iso: string) => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
+  const fromBritishDate = (brit: string) => {
+    const [d, m, y] = brit.split('/');
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  };
 
-    const parsedDepositAmount = parseFloat(depositAmount);
-    if (isNaN(parsedDepositAmount) || parsedDepositAmount <= 0) {
-      setPaymentStatus("❌ Invalid deposit amount.");
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (
-      !tenancyStartDate ||
-      !tenancyEnd ||
-      new Date(tenancyEnd) <= new Date(tenancyStartDate)
-    ) {
-      setPaymentStatus("❌ Invalid tenancy dates.");
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (!ethers.utils.isAddress(landlordInput.trim())) {
-      setPaymentStatus("❌ Invalid landlord address.");
-      setIsProcessingPayment(false);
-      return;
-    }
-    if (!ethereumProvider || !ethereumSigner || !ethereumAccount) {
-      setPaymentStatus("❌ Wallet not connected.");
-      setIsProcessingPayment(false);
-      return;
-    }
-
-    try {
-      const amountWei = ethers.utils.parseUnits(depositAmount, URZ_DECIMALS);
-      const urzContract = new ethers.Contract(
-        URZ_CONTRACT_ADDRESS,
-        URZ_CONTRACT_ABI,
-        ethereumSigner
-      );
-      const tx = await urzContract.transfer(landlordInput.trim(), amountWei);
-
-      setPaymentStatus(`⏳ Transaction sent! Waiting... Tx Hash: ${tx.hash}`);
-      setPaymentTxHash(tx.hash);
-
-      const receipt = await tx.wait();
-      if (receipt?.status === 1) {
-        setPaymentStatus(
-          `🎉 Payment Confirmed! ${depositAmount} ${selectedToken} sent.`
-        );
-      } else {
-        setPaymentStatus("❌ Transaction failed or reverted.");
-      }
-    } catch (error: any) {
-      if (error.code === 4001) {
-        setPaymentStatus("❌ Transaction rejected.");
-      } else {
-        setPaymentStatus(`❌ Error: ${error.message}`);
-      }
-      setPaymentTxHash(null);
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  }, [
-    ethereumProvider,
-    ethereumSigner,
-    ethereumAccount,
-    depositAmount,
-    tenancyStartDate,
-    tenancyEnd,
-    landlordInput,
-    selectedToken,
-  ]);
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Accepts DD/MM/YYYY, converts to ISO
+    setTenancyStartDate(fromBritishDate(e.target.value));
+  };
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTenancyEnd(fromBritishDate(e.target.value));
+  };
 
   return (
-    <div
-      style={{ color: "var(--text-color)" }}
-      className={`p-4 border shadow-xl text-black rounded-xl `}
-    >
-      <h2 className="text-lg font-bold mb-4">Rent Deposit Payment</h2>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Tenancy Start Date
-          </label>
-          <input
-            type="date"
-            value={tenancyStartDate}
-            onChange={(e) => setTenancyStartDate(e.target.value)}
-            className={inputStyle}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Tenancy End Date
-          </label>
-          <input
-            type="date"
-            value={tenancyEnd}
-            onChange={(e) => setTenancyEnd(e.target.value)}
-            className={inputStyle}
-          />
-        </div>
+    <form>
+      <h2>Deposit Form</h2>
+      <div>
+        <label>Deposit Amount</label>
+        <input
+          type="number"
+          min="0.0001"
+          step="0.0001"
+          value={depositAmount}
+          onChange={handleDepositChange}
+        />
+        {error && <p style={{ color: 'red', fontWeight: 'bold' }}>{error}</p>}
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div>
+        <label>Payment Method</label>
+        <select value={currencyType} onChange={e => setCurrencyType(e.target.value as any)}>
+          <option value="card">Credit or Debit Card</option>
+          <option value="bank">Bank Transfer</option>
+          <option value="urz">URZ Token</option>
+          <option value="token">Cryptocurrency</option>
+        </select>
+      </div>
+      {currencyType === 'bank' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Deposit Amount
-          </label>
-          <input
-            type="number"
-            value={depositAmount}
-            onChange={(e) => setDepositAmount(e.target.value)}
-            className={inputStyle}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Tenancy Duration (Months)
-          </label>
-          <select
-            value={tenancyDurationMonths}
-            onChange={(e) => setTenancyDurationMonths(e.target.value)}
-            className={inputStyle}
-          >
-            {Array.from({ length: 8 }, (_, i) => (i + 1) * 3).map((m) => (
-              <option key={m} value={m}>
-                {m} months
-              </option>
+          <label>Currency</label>
+          <select value={fiatCurrency} onChange={e => setFiatCurrency(e.target.value)}>
+            {bankOptions.map(opt => (
+              <option key={opt.code} value={opt.code}>{opt.name}</option>
             ))}
           </select>
-        </div>
-      </div>
-
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Landlord Wallet Address
-      </label>
-      <input
-        type="text"
-        value={landlordInput}
-        onChange={(e) => setLandlordInput(e.target.value)}
-        className={inputStyle}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Token
-          </label>
-          <select
-            value={selectedToken}
-            onChange={(e) => setSelectedToken(e.target.value)}
-            className={inputStyle}
-          >
-            {POPULAR_TOKENS.map((token) => (
-              <option key={token.symbol} value={token.symbol}>
-                {token.name} ({token.symbol})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Fiat
-          </label>
-          <select
-            value={selectedFiat}
-            onChange={(e) => setSelectedFiat(e.target.value)}
-            className={inputStyle}
-          >
-            {POPULAR_FIATS.map((fiat) => (
-              <option key={fiat.symbol} value={fiat.symbol}>
-                {fiat.name} ({fiat.symbol})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {!ethereumAccount ? (
-        <button
-          onClick={connectEthereumWallet}
-          className="bg-blue-500 text-white px-4 py-2 rounded w-full mt-4"
-        >
-          Connect Wallet
-        </button>
-      ) : (
-        <button
-          onClick={handlePayToken}
-          disabled={isProcessingPayment}
-          className="bg-green-600 text-white px-4 py-2 rounded w-full mt-4"
-        >
-          {isProcessingPayment
-            ? "Processing..."
-            : `Pay Token (${selectedToken})`}
-        </button>
-      )}
-
-      {paymentStatus && (
-        <div className="mt-4 p-3 border rounded text-sm success">
-          <p className="break-words overflow-wrap-anywhere whitespace-pre-wrap">
-            {paymentStatus}
-          </p>
-          {paymentTxHash && (
-            <p className="break-all text-xs sm:text-sm">
-              Tx:{" "}
-              <a
-                href={`https://moonbase.moonscan.io/tx/${paymentTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline break-all"
-              >
-                {paymentTxHash}
-              </a>
-            </p>
-          )}
         </div>
       )}
-    </div>
+      {currencyType === 'token' && (
+        <div>
+          <label>Token</label>
+          <select value={tokenSymbol} onChange={e => setTokenSymbol(e.target.value)}>
+            {tokenOptions.map(opt => (
+              <option key={opt.symbol} value={opt.symbol}>{opt.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      {currencyType === 'urz' && (
+        <div>
+          <label>URZ Token selected</label>
+        </div>
+      )}
+      {currencyType === 'card' && (
+        <div style={{marginBottom: 16, marginTop: 8, padding: 12, border: '1px solid #eee', borderRadius: 8}}>
+          <label style={{display: 'block', fontWeight: 500, marginBottom: 4}}>Card Details</label>
+          <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+            <input type="text" placeholder="Card Number" maxLength={19} style={{padding: 8, borderRadius: 4, border: '1px solid #ccc'}} />
+            <div style={{display: 'flex', gap: 8}}>
+              <input type="text" placeholder="MM/YY" maxLength={5} style={{padding: 8, borderRadius: 4, border: '1px solid #ccc', width: 80}} />
+              <input type="text" placeholder="CVC" maxLength={4} style={{padding: 8, borderRadius: 4, border: '1px solid #ccc', width: 60}} />
+            </div>
+            <input type="text" placeholder="Name on Card" style={{padding: 8, borderRadius: 4, border: '1px solid #ccc'}} />
+            <input type="text" placeholder="Billing Postcode" style={{padding: 8, borderRadius: 4, border: '1px solid #ccc'}} />
+          </div>
+        </div>
+      )}
+      <div>
+        <label>Tenancy Start Date</label>
+        <input
+          type="date"
+          value={tenancyStartDate}
+          onChange={e => setTenancyStartDate(e.target.value)}
+        />
+        <span style={{ marginLeft: 8, color: '#888' }}>
+          (DD/MM/YYYY): {toBritishDate(tenancyStartDate)}
+        </span>
+      </div>
+      <div>
+        <label>Tenancy End Date</label>
+        <input
+          type="date"
+          value={tenancyEnd}
+          onChange={e => setTenancyEnd(e.target.value)}
+        />
+        <span style={{ marginLeft: 8, color: '#888' }}>
+          (DD/MM/YYYY): {toBritishDate(tenancyEnd)}
+        </span>
+      </div>
+    </form>
   );
-}
+};
+
+export default DepositForm;

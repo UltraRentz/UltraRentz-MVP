@@ -1,3 +1,48 @@
+  /**
+   * Raise a dispute (partial or full) by landlord
+   */
+  static async raiseDispute(req: Request, res: Response): Promise<void> {
+    try {
+      const { depositId } = req.params;
+      const { disputedAmount, reason } = req.body;
+      // Find deposit
+      const deposit = await Deposit.findOne({ where: { id: depositId } });
+      if (!deposit) {
+        res.status(404).json({ error: "Deposit not found" });
+        return;
+      }
+      // Only landlord can raise dispute
+      const userAddress = req.user?.address?.toLowerCase();
+      if (!userAddress || userAddress !== deposit.landlord_address) {
+        res.status(403).json({ error: "Only the landlord can raise a dispute" });
+        return;
+      }
+      // Validate disputed amount
+      const disputed = parseFloat(disputedAmount);
+      const total = parseFloat(deposit.amount);
+      if (isNaN(disputed) || disputed < 0 || disputed > total) {
+        res.status(400).json({ error: "Invalid disputed amount" });
+        return;
+      }
+      // Calculate undisputed amount
+      const tenantAmount = (total - disputed).toString();
+      const landlordAmount = disputed.toString();
+      // Create dispute record
+      const dispute = await Dispute.create({
+        deposit_id: deposit.id,
+        triggered_by: userAddress,
+        status: "active",
+        resolution: reason,
+        tenant_amount: tenantAmount,
+        landlord_amount: landlordAmount,
+      });
+      // TODO: Call contract to lock only disputed amount (optional, handled at resolution)
+      res.json({ message: "Dispute raised", dispute });
+    } catch (error) {
+      logger.error("Error raising dispute:", error);
+      res.status(500).json({ error: "Failed to raise dispute" });
+    }
+  }
 import { Request, Response } from "express";
 import { query, param, validationResult } from "express-validator";
 import { Dispute, Deposit } from "../models";

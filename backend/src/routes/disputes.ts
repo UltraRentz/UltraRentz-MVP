@@ -1,3 +1,16 @@
+
+import { authenticate } from "../middleware/auth";
+
+/**
+ * @route POST /api/disputes/:depositId
+ * @desc Raise a dispute (partial or full) by landlord
+ * @access Private (landlord only)
+ */
+router.post(
+  "/:depositId",
+  authenticate,
+  DisputeController.raiseDispute
+);
 import { Router } from "express";
 import {
   DisputeController,

@@ -1,20 +1,18 @@
-import { useCallback } from 'react'; // Corrected React import and added useCallback
-
-// Removed unused imports from './components/ui/'
-// import { input } from './components/ui/input';
-// import { textarea } from './components/ui/textarea';
-// import { button } from './components/ui/button';
+import { useCallback, useEffect, useState } from 'react';
+import { getAaveYield, withdrawFromAave } from '../utils/aaveYield';
+import { ethers } from 'ethers';
 
 interface YieldInfoProps {
   userRole: string;
-  yieldAmount: string; // Consider if this should be a number or BigInt from the start if it's for display
+  yieldAmount: string;
   yieldToken: string;
   yieldStatus: string;
-  setYieldStatus: (status: string) => void; // This can still be used for internal status messages before calling onClaimYield
-  // New prop: function to call when the "Earn Yield" button is clicked
+  setYieldStatus: (status: string) => void;
   onClaimYield: () => void;
-  // New prop: to indicate if the yield claiming operation is currently in progress
   isClaiming?: boolean;
+  provider?: ethers.Provider;
+  signer?: ethers.Signer;
+  account?: string;
 }
 
 export default function YieldInfo({
@@ -22,17 +20,50 @@ export default function YieldInfo({
   yieldAmount,
   yieldToken,
   yieldStatus,
-  setYieldStatus: _setYieldStatus, // Kept for potential internal status updates if needed
-  onClaimYield, // The actual function to trigger the yield claim process
-  isClaiming = false, // Default to false
+  setYieldStatus: _setYieldStatus,
+  onClaimYield,
+  isClaiming = false,
+  provider,
+  signer,
+  account,
 }: YieldInfoProps) {
+  const [currentYield, setCurrentYield] = useState<string>(yieldAmount || '0');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // Fetch yield on mount or when account changes
+  useEffect(() => {
+    async function fetchYield() {
+      if (provider && account) {
+        try {
+          const yieldRaw = await getAaveYield(provider, account);
+          setCurrentYield(yieldRaw.toString());
+        } catch (err) {
+          setCurrentYield('0');
+        }
+      }
+    }
+    fetchYield();
+  }, [provider, account]);
 
   // Memoize the handler for the "Earn Yield" button
-  const handleYieldClick = useCallback(() => {
-    // Optionally, you could add pre-claim validation here if needed
-    // setYieldStatus("Initiating yield claim..."); // Optional interim status
-    onClaimYield(); // Call the parent-provided claim function
-  }, [onClaimYield]); // Dependency: onClaimYield prop
+  const handleYieldClick = useCallback(async () => {
+    if (!signer || !provider || !account) return;
+    setIsWithdrawing(true);
+    try {
+      // Withdraw all yield (for demo, withdraw all)
+      const tx = await withdrawFromAave(provider, signer, ethers.parseUnits(currentYield, 18));
+      await tx.wait();
+      setIsWithdrawing(false);
+      _setYieldStatus('✅ Yield claimed!');
+      // Refresh yield
+      const yieldRaw = await getAaveYield(provider, account);
+      setCurrentYield(yieldRaw.toString());
+    } catch (err) {
+      setIsWithdrawing(false);
+      _setYieldStatus('Error: ' + (err as Error).message);
+    }
+    onClaimYield();
+  }, [signer, provider, account, currentYield, onClaimYield, _setYieldStatus]);
 
   return (
     <div className="form-section">
@@ -41,36 +72,34 @@ export default function YieldInfo({
         <strong>User Role:</strong> {userRole || "N/A"}
       </div>
       <div className="info-text">
-        <strong>Yield Amount:</strong> {yieldAmount || "0"}
+        <strong>Yield Amount:</strong> {currentYield}
       </div>
       <div className="info-text">
         <strong>Yield Token:</strong> {yieldToken || "N/A"}
       </div>
       <button
         type="button"
-        onClick={handleYieldClick} // Use the memoized handler
-        disabled={isClaiming} // Disable the button while claiming is in progress
-        // Retaining the original inline styles for the button (assuming they come from primary-button class)
+        onClick={handleYieldClick}
+        disabled={isClaiming || isWithdrawing}
         style={{
-          backgroundColor: '#0f5132', // Example color, replace with your actual primary-button style
+          backgroundColor: '#0f5132',
           color: 'white',
           borderRadius: '6px',
-          padding: '10px 20px', // Adjusted padding for better button appearance
-          cursor: isClaiming ? 'not-allowed' : 'pointer', // Change cursor when disabled
-          border: 'none', // Assuming primary-button has no border
-          minWidth: '120px', // Ensure consistent width for button text change
-          transition: 'background-color 0.3s ease', // Smooth transition for hover/disabled state
+          padding: '10px 20px',
+          cursor: isClaiming || isWithdrawing ? 'not-allowed' : 'pointer',
+          border: 'none',
+          minWidth: '120px',
+          transition: 'background-color 0.3s ease',
         }}
       >
-        {isClaiming ? "Claiming..." : "Earn Yield"} {/* Dynamic button text */}
+        {isClaiming || isWithdrawing ? "Claiming..." : "Earn Yield"}
       </button>
-      {/* Display the status from props */}
       {yieldStatus && (
         <p
           className="status-text"
           style={{
             marginTop: '10px',
-            color: yieldStatus.includes("✅") ? 'green' : (yieldStatus.includes("Error") ? 'red' : 'inherit'), // Basic color based on status content
+            color: yieldStatus.includes("✅") ? 'green' : (yieldStatus.includes("Error") ? 'red' : 'inherit'),
           }}
         >
           {yieldStatus}

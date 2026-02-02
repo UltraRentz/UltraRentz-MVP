@@ -11,6 +11,7 @@ import {
   VoteChoice,
   DisputeStatus,
 } from "../models";
+import { notifyDepositReleased } from "./notificationService";
 import { logger } from "../middleware/errorHandler";
 
 export class EventListenerService {
@@ -277,6 +278,7 @@ export class EventListenerService {
         where: { chain_deposit_id: id.toNumber() },
       });
 
+
       if (deposit) {
         // Create yield history record for tenant
         await YieldHistory.create({
@@ -289,13 +291,10 @@ export class EventListenerService {
           claimed_at: new Date(),
         });
 
-        // Emit WebSocket event
-        this.io.emit("yield:claimed", {
-          depositId: id.toNumber(),
-          user: deposit.tenant_address,
-          amount: ethers.utils.formatEther(amount),
-          txHash: event.transactionHash,
-        });
+        // In-app and SMS notification
+        const tenantPhone = deposit.tenant_phone || null; // TODO: Replace with real phone lookup
+        const landlordPhone = deposit.landlord_phone || null;
+        notifyDepositReleased(this.io, deposit, tenantPhone, landlordPhone, ethers.utils.formatEther(amount), "tenant");
       }
 
       logger.info(`Yield claimed by tenant for deposit ${id.toString()}`);
@@ -326,6 +325,7 @@ export class EventListenerService {
         where: { chain_deposit_id: id.toNumber() },
       });
 
+
       if (deposit) {
         // Create yield history record for landlord
         await YieldHistory.create({
@@ -338,13 +338,10 @@ export class EventListenerService {
           claimed_at: new Date(),
         });
 
-        // Emit WebSocket event
-        this.io.emit("yield:claimed", {
-          depositId: id.toNumber(),
-          user: deposit.landlord_address,
-          amount: ethers.utils.formatEther(amount),
-          txHash: event.transactionHash,
-        });
+        // In-app and SMS notification
+        const tenantPhone = deposit.tenant_phone || null; // TODO: Replace with real phone lookup
+        const landlordPhone = deposit.landlord_phone || null;
+        notifyDepositReleased(this.io, deposit, tenantPhone, landlordPhone, ethers.utils.formatEther(amount), "landlord");
       }
 
       logger.info(`Yield claimed by landlord for deposit ${id.toString()}`);

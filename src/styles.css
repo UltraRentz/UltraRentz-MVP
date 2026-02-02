@@ -1,48 +1,60 @@
-:root[data-theme="dark"] {
-  --bg-color: #000; /* Neutral - Dark Charcoal */
-  --text-color: #f9fafb; /* Background - Soft Gray (as light text) */
-  --form-bg: #1f2937; /* Slightly lighter than neutral */
-  --btn-bg: #2563eb; /* Primary - Brand Blue */
-  --btn-text: white;
-  --input-bg: #4b5563; /* Medium gray for inputs */
-  --calendar-icon-color: #f9fafb; /* Light text color */
-  --border-color: #2563eb; /* Primary - Brand Blue */
-  --success-bg: #064e3b; /* Dark emerald for success */
-  --error-bg: #7f1d1d; /* Dark red for errors */
-  --info-bg: #374151; /* Form background for info */
-  --accent-color: #f59e0b; /* Gold for yields/profits */
-  --accent-bg: #451a03; /* Dark gold background */
+@keyframes motto-pulse {
+  0%, 100% { opacity: 1; text-shadow: 0 0 8px #6366f1, 0 0 2px #10b981; }
+  50% { opacity: 0.85; text-shadow: 0 0 16px #8B5CF6, 0 0 8px #10b981; }
+}
+
+.animate-motto-pulse {
+  animation: motto-pulse 2.5s infinite;
+}
+
+ :root[data-theme="dark"] {
+  --bg-color: #0a0a0a;
+  --text-color: #e0e7ef;
+  --form-bg: #18181b;
+  --btn-bg: #6366f1; /* indigo-500 */
+  --btn-text: #fff;
+  --input-bg: #23272f;
+  --calendar-icon-color: #10b981; /* emerald-500 */
+  --border-color: #10b981;
+  --success-bg: #064e3b;
+  --error-bg: #7f1d1d;
+  --info-bg: #1e293b;
+  --accent: #10b981;
+  --logo-bg: linear-gradient(135deg, #6366f1 60%, #10b981 100%);
 }
 
 :root[data-theme="light"] {
-  --bg-color: #faf7f3; /* Background - Soft Gray */
-  --text-color: #1f2937; /* Neutral - Dark Charcoal */
-  --form-bg: #faf7f3; /* Pure white for forms */
-  --btn-bg: #2563eb; /* Primary - Brand Blue */
-  --btn-text: white;
-  --input-bg: #f3f4f6; /* Light gray for inputs */
-  --calendar-icon-color: #1f2937; /* Dark text color */
-  --border-color: #2563eb; /* Primary - Brand Blue */
-  --success-bg: #d1fae5; /* Light emerald for success */
-  --error-bg: #fee2e2; /* Light red for errors */
-  --info-bg: #f3f4f6; /* Light gray for info */
-  --accent-color: #f59e0b; /* Gold for yields/profits */
-  --accent-bg: #fef3c7; /* Light gold background */
+  --bg-color: #f8fafc;
+  --text-color: #18181b;
+  --form-bg: #fff;
+  --btn-bg: #6366f1; /* indigo-500 */
+  --btn-text: #fff;
+  --input-bg: #f1f5f9;
+  --calendar-icon-color: #10b981; /* emerald-500 */
+  --border-color: #6366f1;
+  --success-bg: #d1fae5;
+  --error-bg: #fee2e2;
+  --info-bg: #e0e7ef;
+  --accent: #10b981;
+  --logo-bg: linear-gradient(135deg, #6366f1 60%, #10b981 100%);
+}
 }
 
 body {
   background-color: var(--bg-color);
   color: var(--text-color);
+  font-family: 'Inter', 'sans-serif';
   transition: all 0.3s ease;
 }
 
 .form-section {
   background-color: var(--form-bg);
-  padding: 20px;
-  border-radius: 12px;
-  margin: 20px auto;
+  padding: 2rem 1.5rem;
+  border-radius: 1rem;
+  margin: 2rem auto;
   max-width: 600px;
-  box-shadow: 0 0 10px rgba(37, 99, 235, 0.1); /* Using primary blue */
+  box-shadow: 0 4px 24px 0 rgba(99,102,241,0.08), 0 1.5px 8px 0 rgba(16,185,129,0.08);
+  border: 1.5px solid var(--border-color);
 }
 
 input,
@@ -86,12 +98,30 @@ label {
   position: absolute;
   top: 10px;
   right: 10px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  background-color: var(--btn-bg);
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--btn-bg);
   color: var(--btn-text);
   border: none;
+  font-weight: 600;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px 0 rgba(99,102,241,0.08);
   cursor: pointer;
+  transition: background 0.2s;
+}
+.logo-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--logo-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #fff;
+  font-weight: 900;
+  margin-right: 1rem;
+  box-shadow: 0 2px 8px 0 rgba(99,102,241,0.12);
 }
 @media only screen and (min-device-width: 320px) and (max-device-width: 480px) {
   .theme-toggle {
@@ -117,37 +147,36 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
+
 .success {
-  color: #10b981; /* Secondary - Emerald Green */
+  color: var(--accent);
   background-color: var(--success-bg);
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-top: 10px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-top: 12px;
+  font-weight: 600;
 }
+
 
 .error {
-  color: #dc2626; /* Error/Alert - Red */
+  color: #ef4444;
   background-color: var(--error-bg);
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-top: 10px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-top: 12px;
+  font-weight: 600;
 }
 
-.accent {
-  color: var(--accent-color); /* Gold for yields/profits */
-  background-color: var(--accent-bg);
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-top: 10px;
-}
+
 
 .tx-hash {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   background-color: var(--info-bg);
   color: var(--text-color);
-  padding: 6px 10px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: 6px;
   word-break: break-all;
-  margin-top: 6px;
+  margin-top: 8px;
   border-left: 3px solid var(--border-color);
+  font-family: 'JetBrains Mono', 'Fira Mono', 'Menlo', monospace;
 }

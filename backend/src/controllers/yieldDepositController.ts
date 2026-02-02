@@ -8,7 +8,7 @@ export class YieldDepositController {
    */
   static async createYieldDeposit(req: Request, res: Response): Promise<void> {
     try {
-      const { user_address, deposit_amount, duration, expectedAPY } = req.body;
+      const { user_address, deposit_amount, duration, expectedAPY, useAave } = req.body;
 
       // If no user_address provided and user is authenticated, use authenticated user's address
       const finalUserAddress = user_address || req.user?.walletAddress;
@@ -56,6 +56,7 @@ export class YieldDepositController {
         duration_days: durationDays,
         expected_apy: apy.toString(),
         status: "pending",
+        use_aave: !!useAave,
       });
 
       logger.info(

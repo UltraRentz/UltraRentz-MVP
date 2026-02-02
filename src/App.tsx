@@ -1,12 +1,16 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ThemeProvider } from "./contexts/ThemeContext";
+// ThemeProvider and ThemeContext removed
 import { AuthProvider } from "./contexts/AuthContext";
+import DashboardLayout from "./components/DashboardLayout";
+import MottoFooter from "./components/MottoFooter";
+import EscrowOrchestrator from "./components/EscrowOrchestrator";
+// import Yield from "./components/Yield"; // unused
 import TopHeader from "./layouts/TopHeader";
 import MobileMenu from "./components/MobileMenu";
 import HomePage from "./pages/HomePage";
 import RentDepositsPage from "./pages/RentDepositsPage";
-import SignatoryYieldPage from "./pages/SignatoryYieldPage";
+import YieldPage from "./pages/SignatoryYieldPage";
 import DisputesPage from "./pages/DisputesPage";
 import DashboardPage from "./pages/DashboardPage";
 import "./styles.css";
@@ -14,46 +18,35 @@ import "./styles.css";
 const AppContent: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-  };
-
+  // Always use dark theme classes via Tailwind or CSS
   return (
     <Router>
-      <div
-        className="min-h-screen"
-        style={{
-          backgroundColor: "var(--bg-color)",
-          color: "var(--text-color)",
-        }}
-      >
+      <DashboardLayout>
         <TopHeader onMobileMenuToggle={toggleMobileMenu} />
         <MobileMenu isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
-
+        {/* Theme toggle removed, always dark theme */}
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/rent-deposits" element={<RentDepositsPage />} />
-          <Route path="/signatory-yield" element={<SignatoryYieldPage />} />
+          <Route path="/yield" element={<YieldPage />} />
           <Route path="/disputes" element={<DisputesPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/escrow" element={<EscrowOrchestrator />} />
         </Routes>
-      </div>
+        <MottoFooter />
+      </DashboardLayout>
     </Router>
   );
 };
 
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
-  );
-}
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

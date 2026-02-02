@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { supplyToAave } from "../utils/aaveYield";
+import { ethers } from "ethers";
 
 interface YieldFormProps {
   onSubmit: (data: YieldFormData) => Promise<void>;
@@ -10,6 +12,7 @@ interface YieldFormData {
   depositAmount: string;
   duration: string;
   expectedAPY: string;
+  useAave?: boolean;
 }
 
 const YieldForm: React.FC<YieldFormProps> = ({
@@ -21,8 +24,10 @@ const YieldForm: React.FC<YieldFormProps> = ({
     depositAmount: "",
     duration: "30",
     expectedAPY: "5.0",
+    useAave: false,
   });
   const [errors, setErrors] = useState<Partial<YieldFormData>>({});
+  const [isSupplying, setIsSupplying] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<YieldFormData> = {};
@@ -51,22 +56,35 @@ const YieldForm: React.FC<YieldFormProps> = ({
     }
 
     try {
+      if (formData.useAave && authState.isAuthenticated && authState.signer) {
+        setIsSupplying(true);
+        // Supply to Aave using the entered deposit amount
+        const tx = await supplyToAave(
+          authState.provider,
+          authState.signer,
+          ethers.parseUnits(formData.depositAmount, 18)
+        );
+        await tx.wait();
+        setIsSupplying(false);
+      }
       await onSubmit(formData);
       // Reset form after successful submission
       setFormData({
         depositAmount: "",
         duration: "30",
         expectedAPY: "5.0",
+        useAave: false,
       });
     } catch (error) {
+      setIsSupplying(false);
       console.error("Form submission error:", error);
     }
   };
 
-  const handleInputChange = (field: keyof YieldFormData, value: string) => {
+  const handleInputChange = (field: keyof YieldFormData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
-    if (errors[field]) {
+    if (errors[field as keyof YieldFormData]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
@@ -79,11 +97,10 @@ const YieldForm: React.FC<YieldFormProps> = ({
             <span className="text-2xl">🔒</span>
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Connect Your Wallet
+            Wallet Not Connected
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Connect your wallet to create yield deposits and start earning
-            rewards
+            Please use the <b>Connect Account</b> button in the top right to get started and grow your deposit.
           </p>
         </div>
       </div>
@@ -94,10 +111,11 @@ const YieldForm: React.FC<YieldFormProps> = ({
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          Create Yield Deposit
+          Open Digital Tenancy Agreement
         </h3>
+        <div className="text-xs font-bold text-blue-600 dark:text-blue-300 mb-2 uppercase tracking-widest">Protect • Grow • Resolve</div>
         <p className="text-gray-600 dark:text-gray-400 mb-3">
-          Set up a new deposit to start earning yield rewards as a signatory
+          Set up a new deposit to start earning interest and protect your funds with a Digital Tenancy Agreement.
         </p>
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <div className="flex items-start">
@@ -106,12 +124,10 @@ const YieldForm: React.FC<YieldFormProps> = ({
             </div>
             <div className="ml-3">
               <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                Signatory Staking
+                Account Growth
               </h4>
               <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                By staking URZ tokens, you become eligible to vote on deposit
-                releases and earn yield rewards. Higher stakes provide more
-                voting power in the DAO governance system.
+                Your deposit is protected in a Digital Vault and grows with interest, just like a premium savings account. All agreements are secured by our Digital Tenancy Agreement and Independent Arbitration.
               </p>
             </div>
           </div>
@@ -188,15 +204,30 @@ const YieldForm: React.FC<YieldFormProps> = ({
           )}
         </div>
 
-        {/* Yield Calculation Preview */}
+        {/* Use Aave Checkbox */}
+        <div className="flex items-center mb-4">
+          <input
+            id="useAave"
+            type="checkbox"
+            checked={!!formData.useAave}
+            onChange={(e) => handleInputChange("useAave", e.target.checked)}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={isLoading}
+          />
+          <label htmlFor="useAave" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+            Grow with Interest (via Secure Infrastructure Network)
+          </label>
+        </div>
+
+        {/* Account Growth Calculation Preview */}
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
           <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-            Estimated Yield
+            Estimated Account Growth
           </h4>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600 dark:text-gray-400">
-                Daily Yield:
+                Daily Interest:
               </span>
               <span className="ml-2 font-medium text-gray-900 dark:text-white">
                 {formData.depositAmount && formData.expectedAPY
@@ -211,7 +242,7 @@ const YieldForm: React.FC<YieldFormProps> = ({
             </div>
             <div>
               <span className="text-gray-600 dark:text-gray-400">
-                Total Yield:
+                Total Account Growth:
               </span>
               <span className="ml-2 font-medium text-gray-900 dark:text-white">
                 {formData.depositAmount &&
@@ -233,16 +264,16 @@ const YieldForm: React.FC<YieldFormProps> = ({
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isSupplying}
           className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
         >
-          {isLoading ? (
+          {isLoading || isSupplying ? (
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              Creating Deposit...
+              Activating Agreement...
             </div>
           ) : (
-            "Create Yield Deposit"
+            "Activate Digital Tenancy Agreement"
           )}
         </button>
       </form>

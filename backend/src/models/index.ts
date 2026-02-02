@@ -6,6 +6,8 @@ import { Vote, VoteChoice } from "./Vote";
 import { Dispute, DisputeStatus } from "./Dispute";
 import { YieldHistory } from "./YieldHistory";
 import { YieldDeposit } from "./YieldDeposit";
+import { Evidence } from "./Evidence";
+import { DisputeMessage } from "./DisputeMessage";
 
 // Initialize all models first
 console.log("🔧 Initializing Sequelize models...");
@@ -23,6 +25,12 @@ Dispute.belongsTo(Deposit, { foreignKey: "deposit_id", as: "deposit" });
 Deposit.hasMany(YieldHistory, { foreignKey: "deposit_id", as: "yieldHistory" });
 YieldHistory.belongsTo(Deposit, { foreignKey: "deposit_id", as: "deposit" });
 
+Dispute.hasMany(Evidence, { foreignKey: "dispute_id", as: "evidence" });
+Evidence.belongsTo(Dispute, { foreignKey: "dispute_id", as: "dispute" });
+
+Dispute.hasMany(DisputeMessage, { foreignKey: "dispute_id", as: "messages" });
+DisputeMessage.belongsTo(Dispute, { foreignKey: "dispute_id", as: "dispute" });
+
 console.log("✅ All models initialized and associations defined");
 
 // Export models and sequelize instance
@@ -35,6 +43,8 @@ export {
   Dispute,
   YieldHistory,
   YieldDeposit,
+  Evidence,
+  DisputeMessage,
   DepositStatus,
   VoteChoice,
   DisputeStatus,

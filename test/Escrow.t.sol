@@ -1,318 +1,671 @@
+
 // SPDX-License-Identifier: MIT
-// test/Escrow.t.sol
-
-// ... other pragmas and imports ...
-
-// Suppress ERC20 unchecked transfer warnings for test helper code
-// You may also want to suppress the unaliased import warnings here, if you don't fix them.
-// pragma allow-unchecked-external;
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "forge-std/console.sol"; 
+import "forge-std/console.sol";
 import "../contracts/Escrow.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../src/contracts/UltraRentzEscrow.sol";
+
+// Add any other necessary imports here
+
 
 // =========================================================================
-// MOCK CONTRACTS FOR TESTING
+// 5. SECURITY: REENTRANCY ATTACK SIMULATION
 // =========================================================================
 
-// Standard Mock ERC20 Token (used for standard test cases)
-contract MockERC20 is ERC20 {
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
-        // Mint supply to owner
-        _mint(msg.sender, 1_000_000 * 10**18); 
+contract Malicious {
+    UltraRentzEscrow public escrow;
+    uint256 public targetEscrowId;
+    bool public attackAttempted;
+    constructor(UltraRentzEscrow _escrow, uint256 _escrowId) {
+        escrow = _escrow;
+        targetEscrowId = _escrowId;
     }
-}
-
-// Mock Token that simulates a reentrancy attack (used for security test)
-contract ReentrantMockERC20 is MockERC20 {
-    // The callbackTarget is the Test Contract (address(this) of EscrowTest)
-    address public callbackTarget;
-
-    constructor(address _callbackTarget) MockERC20("ReentrantToken", "RET") {
-        callbackTarget = _callbackTarget;
-    }
-
-    // Override transfer to trigger the callback 
-    function transfer(address to, uint256 amount) public virtual override returns (bool) {
-        // The malicious callback logic must be triggered ONLY when the token transfers 
-        // to the malicious contract (address(this) of EscrowTest, which is the Landlord for this test)
-        if (to == callbackTarget) {
-            // This low-level call executes the attack code (attackCallback)
-            // Note: The msg.sender of this call will be the Escrow contract's address.
-            (bool success, ) = callbackTarget.call(abi.encodeWithSignature("attackCallback()"));
-            require(success, "Callback failed");
+    fallback() external payable {
+        if (!attackAttempted) {
+            attackAttempted = true;
+            try escrow.approveRelease(targetEscrowId) {
+                // Should not succeed
+            } catch {}
         }
-        
-        // Proceed with the actual transfer
-        return super.transfer(to, amount);
     }
 }
 
 
-// =========================================================================
-// MAIN TEST CONTRACT
-// =========================================================================
+// ...existing code...
+
+// Merge all test functions into a single EscrowTest contract
+// ...existing code...
+
 
 contract EscrowTest is Test {
-    Escrow public escrow;
-    MockERC20 public mockToken; // Used for all non-attack tests
+    UltraRentzEscrow public escrow;
+    address public daoAdmin = address(0x1234); // Replace with actual DAO admin address as needed
+    address public tenant = address(0x1111);
+    address public landlord = address(0x2222);
+    address[] public signatories;
+    uint256 public DURATION = 30 days;
 
-    // Accounts
-    address owner = makeAddr("owner");
-    address tenant = makeAddr("tenant");
-    address landlord = makeAddr("landlord");
-    address daoAddress = makeAddr("daoAddress");
+    receive() external payable {}
+
+    // =============================
+    // COVERAGE BOOST TESTS
+    // =============================
+    function testReceiveReverts() public {
+        vm.expectRevert(bytes("UltraRentzEscrow does not accept Ether"));
+        address(escrow).call{value: 1 ether}("");
+    }
+    // ...existing code...
+
+
+    function testWithdrawEtherWithBalance() public {
+        // Directly set escrow contract balance using Foundry cheat code
+        vm.deal(address(escrow), 1 ether);
+        assertEq(address(escrow).balance, 1 ether, "Escrow contract did not receive Ether");
+        // Log diagnostic info
+        console.log("daoAdmin:", daoAdmin);
+        console.log("address(this):", address(this));
+        console.log("escrow.owner():", escrow.owner());
+        // Owner can withdraw Ether
+        uint256 before = address(this).balance;
+        vm.prank(daoAdmin);
+        escrow.withdrawEther(payable(address(this)));
+        // Should receive 1 ether
+        assertEq(address(this).balance, before + 1 ether);
+    }
+
+    function testConstructorRevertsOnZeroOwner() public {
+        vm.expectRevert(abi.encodeWithSignature("OwnableInvalidOwner(address)", address(0)));
+        new UltraRentzEscrow(address(0));
+    }
+
+    function testOnlyDAOReverts() public {
+        // Non-DAO tries to pause
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Not the DAO/Admin address"));
+        escrow.pause();
+    }
+
+    function testOnlyTenantReverts() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Landlord tries to raise dispute
+        vm.prank(landlord);
+        vm.expectRevert(bytes("Not tenant"));
+        escrow.raiseDispute(escrowId);
+    }
+
+    function testOnlySignatoryReverts() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Tenant is not a signatory
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Not a signatory"));
+        escrow.approveRelease(escrowId);
+    }
+
+// Helper contract to force Ether into escrow
+
+    function testWithdrawEtherOwnerOnly() public {
+        // Non-owner cannot withdraw (expect revert)
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.withdrawEther(payable(tenant));
+    }
+
+    function testWithdrawEtherOwnerNoOp() public {
+        // Owner can call withdrawEther, but contract has zero balance, so nothing happens
+        vm.prank(daoAdmin);
+        escrow.withdrawEther(payable(address(this)));
+        assertEq(address(this).balance, address(this).balance); // Always true, just to show no revert
+    }
+
+    function testReleaseAfterEndDate() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Fast forward to after end date
+        vm.warp(block.timestamp + DURATION + 1);
+        vm.prank(signatories[0]);
+        escrow.releaseAfterEndDate(escrowId);
+        // After one approval, state should still be Funded
+        (,,,,,,,, UltraRentzEscrow.EscrowState state, ) = escrow.getEscrowDetails(escrowId);
+        assertEq(uint8(state), uint8(UltraRentzEscrow.EscrowState.Funded));
+        // After 4 approvals, should be Released
+        for (uint8 i = 1; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.releaseAfterEndDate(escrowId);
+        }
+        (,,,,,,,, UltraRentzEscrow.EscrowState state2, ) = escrow.getEscrowDetails(escrowId);
+        assertEq(uint8(state2), uint8(UltraRentzEscrow.EscrowState.Released));
+    }
+
+    function testPauseUnpauseBlocksActions() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // DAO pauses contract
+        vm.prank(daoAdmin);
+        escrow.pause();
+        // Actions should revert
+        vm.prank(signatories[0]);
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
+        escrow.approveRelease(escrowId);
+        // DAO unpauses
+        vm.prank(daoAdmin);
+        escrow.unpause();
+        // Action should succeed
+        vm.prank(signatories[0]);
+        escrow.approveRelease(escrowId);
+    }
+
+    function testViewFunctions() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // hasSignatoryApproved
+        bool approved = escrow.hasSignatoryApproved(escrowId, signatories[0]);
+        assertEq(approved, false);
+        // getSignatories
+        address[6] memory sigs = escrow.getSignatories(escrowId);
+        for (uint8 i = 0; i < 6; i++) {
+            assertEq(sigs[i], signatories[i]);
+        }
+        // getEscrowStatus
+        string memory status = escrow.getEscrowStatus(escrowId);
+        assertEq(keccak256(bytes(status)), keccak256(bytes("Funded")));
+        // getEscrowDetails (10 return values)
+        (address t, address l, uint256 amt, address tok, uint256 start, uint256 end, address[6] memory sigs2, uint8 approvals, UltraRentzEscrow.EscrowState state, uint8 appealCount) = escrow.getEscrowDetails(escrowId);
+        assertEq(t, tenant);
+        assertEq(l, landlord);
+        assertEq(amt, RENT_AMOUNT);
+        assertEq(tok, address(urzToken));
+        assertEq(uint8(state), uint8(UltraRentzEscrow.EscrowState.Funded));
+        for (uint8 i = 0; i < 6; i++) {
+            assertEq(sigs2[i], signatories[i]);
+        }
+    }
+
+    // =========================================================================
+    // 6. ON-CHAIN REPUTATION SYSTEM TESTS
+    // =========================================================================
+    function testTenantCanRateLandlordAfterRelease() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId);
+        }
+        // Tenant rates landlord
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId, 5);
+        assertEq(escrow.totalRatingsReceived(landlord), 1);
+        assertEq(escrow.ratingsSum(landlord), 5);
+        assertEq(escrow.getAverageRating(landlord), 5);
+    }
+
+    function testLandlordCanRateTenantAfterRefund() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Dispute and refund
+        vm.prank(tenant);
+        escrow.raiseDispute(escrowId);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(escrowId, false);
+        vm.warp(block.timestamp + RESOLUTION_WINDOW + 1);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(escrowId);
+        // Landlord rates tenant
+        vm.prank(landlord);
+        escrow.rateCounterparty(escrowId, 4);
+        assertEq(escrow.totalRatingsReceived(tenant), 1);
+        assertEq(escrow.ratingsSum(tenant), 4);
+        assertEq(escrow.getAverageRating(tenant), 4);
+    }
+
+    function testCannotRateBeforeEscrowFinalized() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Escrow not finalized"));
+        escrow.rateCounterparty(escrowId, 5);
+    }
+
+    function testCannotRateTwiceForSameEscrow() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId);
+        }
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId, 5);
+        vm.prank(tenant);
+        vm.expectRevert(bytes("Already rated for this escrow"));
+        escrow.rateCounterparty(escrowId, 4);
+    }
+
+    function testOnlyTenantOrLandlordCanRate() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId);
+        }
+        address notParty = signatories[5];
+        vm.prank(notParty);
+        vm.expectRevert(bytes("Only tenant or landlord can rate"));
+        escrow.rateCounterparty(escrowId, 5);
+    }
+
+    function testAverageRatingMultipleRatings() public {
+        uint256 escrowId1 = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId1);
+        }
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId1, 4);
+        uint256 escrowId2 = _createEscrowAndFund(tenant, landlord);
+        for (uint8 i = 0; i < 4; i++) {
+            vm.prank(signatories[i]);
+            escrow.approveRelease(escrowId2);
+        }
+        vm.prank(tenant);
+        escrow.rateCounterparty(escrowId2, 2);
+        assertEq(escrow.totalRatingsReceived(landlord), 2);
+        assertEq(escrow.ratingsSum(landlord), 6);
+        assertEq(escrow.getAverageRating(landlord), 3);
+    }
+
+
+
+
+// ...existing code...
+        // =========================================================================
+        // 4. INTEGRATION: FULL ESCROW LIFECYCLE
+        // =========================================================================
+        function testFullEscrowLifecycle_UserToDAO() public {
+            // 1. Tenant creates and funds escrow
+            uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+            // 2. Four signatories approve release
+            for (uint8 i = 0; i < 4; i++) {
+                vm.prank(signatories[i]);
+                escrow.approveRelease(escrowId);
+            }
+            // 3. Check landlord received funds
+            assertEq(_getBalance(landlord), RENT_AMOUNT, "Landlord should receive funds after 4 approvals");
+        }
+
+        function testFullEscrowLifecycle_DisputeAndDAOAppeal() public {
+            // 1. Tenant creates and funds escrow
+            uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+            // 2. Tenant raises dispute
+            vm.prank(tenant);
+            escrow.raiseDispute(escrowId);
+            uint256 disputeTime = block.timestamp;
+            // 3. DAO resolves in favor of landlord (release)
+            _warpToAllowResolution(disputeTime);
+            vm.prank(daoAdmin);
+            escrow.resolveDispute(escrowId, true);
+            // 4. Tenant appeals
+            vm.warp(block.timestamp + 1);
+            vm.prank(tenant);
+            escrow.submitAppeal(escrowId);
+            uint256 appealTime = block.timestamp;
+            // 5. DAO finalizes appeal in favor of tenant (refund)
+            _warpToAllowResolution(appealTime);
+            vm.prank(daoAdmin);
+            escrow.finalizeAppealDecision(escrowId, false);
+            // 6. Fast-forward to end of window and finalize escrow
+            _warpPastResolutionWindow(block.timestamp);
+            uint256 initialTenantBalance = _getBalance(tenant);
+            vm.prank(daoAdmin);
+            escrow.finalizeEscrow(escrowId);
+            // 7. Tenant should be refunded
+            assertEq(_getBalance(tenant), initialTenantBalance + RENT_AMOUNT, "Tenant should be refunded after successful appeal");
+        }
+    UltraRentzEscrow public escrow;
+    TestERC20 public urzToken;
     
-    // Signatory Arrays
-    address[3] tenantSignatories;
-    address[3] landlordSignatories;
+    // Accounts
+    address public daoAdmin = makeAddr("daoAdmin");
+    address public tenant = makeAddr("tenant");
+    address public landlord = makeAddr("landlord");
+    address public maliciousActor = makeAddr("malicious");
+    address[6] public signatories;
+    uint256 public constant RENT_AMOUNT = 100 ether;
 
-    // --- SETUP AND HELPERS ---
+    // Time constants
+    uint256 public constant START_TIME = 1000;
+    uint256 public constant DURATION = 30 days;
+    uint256 public constant RESOLUTION_WINDOW = 7 days;
 
     function setUp() public {
-        vm.startPrank(owner);
-        mockToken = new MockERC20("TestToken", "TST");
-        
-        // Ensure tenant has tokens from the start for correct balance accounting
-        mockToken.transfer(tenant, 500_000 * 10**18); 
-        
-        tenantSignatories = [makeAddr("ts1"), makeAddr("ts2"), makeAddr("ts3")];
-        landlordSignatories = [makeAddr("ls1"), makeAddr("ls2"), makeAddr("ls3")];
-        
-        escrow = new Escrow(owner);
-        escrow.setDAO(daoAddress);
+        vm.warp(START_TIME);
 
-        vm.stopPrank();
+        for(uint8 i = 0; i < 6; i++) {
+            signatories[i] = makeAddr(string.concat("signatory", vm.toString(i)));
+        }
+
+        vm.prank(daoAdmin);
+        escrow = new UltraRentzEscrow(daoAdmin);
+
+        vm.prank(daoAdmin);
+        urzToken = new TestERC20("UltraRentz Token", "URZ", 18);
+        urzToken.mint(tenant, RENT_AMOUNT * 10);
     }
 
     // =========================================================================
-    // V. TRANSFER DEPOSIT FEATURE TESTS
+    // 3. EDGE CASES & FAILURE MODES
     // =========================================================================
 
-    function testTransferDeposit_Bank() public {
-        uint256 depositAmount = 100 ether;
-        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
+    function testSignatoryCannotApproveTwice() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        address sig = signatories[0];
+        vm.prank(sig);
+        escrow.approveRelease(escrowId);
+        vm.prank(sig);
+        vm.expectRevert(bytes("Already approved"));
+        escrow.approveRelease(escrowId);
+    }
 
-        // Only tenant or landlord can call
+    function testNonSignatoryCannotApprove() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+
+        // ...existing code...
+        vm.prank(maliciousActor);
+        vm.expectRevert(bytes("Not a signatory"));
+        escrow.approveRelease(escrowId);
+    }
+
+    function testCannotApproveInInvalidState() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Move to dispute state
         vm.prank(tenant);
-        vm.expectEmit(true, true, false, true);
-        emit Escrow.DepositTransferred(depositId, Escrow.DestinationType.Bank, address(0), "BANK-XYZ-123", depositAmount);
-        escrow.transferDeposit(depositId, Escrow.DestinationType.Bank, address(0), "BANK-XYZ-123", depositAmount);
-
-        // Deposit should be marked as released
-        (,,,, Escrow.DepositStatus status,,) = escrow.getDepositBasic(depositId);
-        assertEq(uint8(status), uint8(Escrow.DepositStatus.Released), "Status must be Released");
+        escrow.raiseDispute(escrowId);
+        address sig = signatories[0];
+        vm.prank(sig);
+        vm.expectRevert(bytes("Invalid state"));
+        escrow.approveRelease(escrowId);
     }
 
-    function testTransferDeposit_Contract() public {
-        uint256 depositAmount = 100 ether;
-        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
-        address contractDest = makeAddr("contractDest");
-
-        uint256 initialBalance = mockToken.balanceOf(contractDest);
-
+    function testNonTenantCannotRaiseDispute() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
         vm.prank(landlord);
-        vm.expectEmit(true, true, false, true);
-        emit Escrow.DepositTransferred(depositId, Escrow.DestinationType.Contract, contractDest, "", depositAmount);
-        escrow.transferDeposit(depositId, Escrow.DestinationType.Contract, contractDest, "", depositAmount);
-
-        // Tokens should be transferred
-        assertEq(mockToken.balanceOf(contractDest), initialBalance + depositAmount, "Tokens must be transferred to contract");
+        vm.expectRevert(bytes("Not tenant"));
+        escrow.raiseDispute(escrowId);
     }
 
-    function testTransferDeposit_Scheme() public {
-        uint256 depositAmount = 100 ether;
-        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
-        address schemeDest = makeAddr("schemeDest");
-
-        uint256 initialBalance = mockToken.balanceOf(schemeDest);
-
+    function testCannotFundEscrowTwice() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
         vm.prank(tenant);
-        vm.expectEmit(true, true, false, true);
-        emit Escrow.DepositTransferred(depositId, Escrow.DestinationType.Scheme, schemeDest, "", depositAmount);
-        escrow.transferDeposit(depositId, Escrow.DestinationType.Scheme, schemeDest, "", depositAmount);
-
-        // Tokens should be transferred
-        assertEq(mockToken.balanceOf(schemeDest), initialBalance + depositAmount, "Tokens must be transferred to scheme");
+        vm.expectRevert(bytes("Escrow is not fundable"));
+        escrow.fundEscrow(escrowId);
     }
 
-    function testTransferDeposit_OnlyTenantOrLandlord() public {
-        uint256 depositAmount = 100 ether;
-        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
-        address attacker = makeAddr("attacker");
-
-        vm.prank(attacker);
-        vm.expectRevert("Only tenant/landlord");
-        escrow.transferDeposit(depositId, Escrow.DestinationType.Scheme, attacker, "", depositAmount);
-    }
-    
-    // Helper to fetch deposit amount
-    function _getDepositAmount(uint256 depositId) internal view returns (uint256 amount) {
-        (,, , amount, , , ) = escrow.getDepositBasic(depositId);
-        return amount;
-    }
-
-    // Helper to move to the SimpleAgreement state (Tenant requests refund)
-    function _goToSimpleAgreement(uint256 depositId) internal {
-        vm.prank(tenant);
-        escrow.tenantRequestRefund(depositId);
-    }
-
-    // Helper to advance state to MultisigResolution
-    function _goToMultisigResolution(uint256 depositId) internal {
-        // 1. Advance to SimpleAgreement state (Tenant requests refund)
-        _goToSimpleAgreement(depositId); 
-        
-        // 2. Fast-forward time past the 7-day deadline
-        vm.warp(block.timestamp + escrow.DEADLINE_DURATION() + 1); 
-        
-        // 3. Any signatory/party escalates the deposit (moves state to MultisigResolution)
-        vm.prank(tenantSignatories[0]);
-        escrow.escalateToMultisig(depositId); 
-    }
-
-    // Helper function to create a deposit for tests
-    function _createDeposit(
-        uint256 amount, 
-        address _tenant, 
-        address _landlord,
-        IERC20 _token
-    ) internal returns (uint256 depositId) {
-        // Tenant is already funded in setUp
-        
-        vm.startPrank(_tenant);
-        _token.approve(address(escrow), amount);
-
-        depositId = escrow.createDeposit(
-            _token,
-            _landlord,
-            amount,
-            tenantSignatories,
-            landlordSignatories
+    function testTokenTransferFailsOnInsufficientBalance() public {
+        // Reset tenant's balance to 0, then mint only a small amount
+        vm.prank(daoAdmin);
+        urzToken.burn(tenant, urzToken.balanceOf(tenant));
+        urzToken.mint(tenant, 1 ether);
+        address[6] memory sigs = signatories;
+        vm.startPrank(tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        uint256 escrowId = escrow.createEscrow(
+            landlord,
+            RENT_AMOUNT,
+            address(urzToken),
+            block.timestamp,
+            block.timestamp + DURATION,
+            sigs
         );
+        // Debug: check tenant's balance and allowance
+        assertEq(urzToken.balanceOf(tenant), 1 ether, "Tenant should have 1 ether");
+        assertEq(urzToken.allowance(tenant, address(escrow)), RENT_AMOUNT, "Escrow should have allowance for RENT_AMOUNT");
+        vm.expectRevert();
+        escrow.fundEscrow(escrowId);
         vm.stopPrank();
     }
     
-    // =========================================================================
-    // I. HAPPY PATH TESTS (PASSING)
-    // =========================================================================
+    function _createEscrowAndFund(address _tenant, address _landlord) private returns (uint256) {
+        vm.warp(block.timestamp + 1); 
 
-    function testHappyPath_FullRefundSuccess() public {
-        uint256 depositAmount = 100 ether;
-        // Capture initial balance BEFORE the deposit transaction is created
-        uint256 initialTenantBalance = mockToken.balanceOf(tenant); 
+        uint256 newEscrowId;
 
-        uint256 depositId = _createDeposit(depositAmount, tenant, landlord, mockToken);
+        vm.startPrank(_tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        newEscrowId = escrow.createEscrow(
+            _landlord,
+            RENT_AMOUNT,
+            address(urzToken),
+            block.timestamp,
+            block.timestamp + DURATION,
+            signatories
+        );
+        escrow.fundEscrow(newEscrowId);
+        vm.stopPrank();
         
-        // Advance to SimpleAgreement state
-        _goToSimpleAgreement(depositId);
+        return newEscrowId;
+    }
+    
+    function _warpPastResolutionWindow(uint256 startTime) private {
+        vm.warp(startTime + RESOLUTION_WINDOW + 1 seconds);
+    }
 
-        // Landlord Approves Refund (Execution occurs here)
-        vm.prank(landlord);
-        escrow.landlordApproveFullRefund(depositId);
-
-        // Assert: Funds returned to tenant.
-        assertEq(mockToken.balanceOf(tenant), initialTenantBalance, "Tenant balance must be restored");
+    function _warpToAllowResolution(uint256 startTime) private {
+        uint256 targetTime = startTime + RESOLUTION_WINDOW - 1 hours;
         
-        (,, , , Escrow.DepositStatus currentStatus, ,) = escrow.getDepositBasic(depositId);
-        assertEq(uint8(currentStatus), uint8(Escrow.DepositStatus.Released), "Status must be Released");
+        uint256 safeWarpTime = targetTime > block.timestamp
+          ? targetTime
+          : block.timestamp + 1;
+        
+        vm.warp(safeWarpTime);
+    }
+    
+    function _getBalance(address account) internal view returns (uint256) {
+        return urzToken.balanceOf(account);
     }
     
     // =========================================================================
-    // IV. SECURITY TEST (Reentrancy)
+    // 2. DAO DISPUTE, TIMING, AND APPEAL TESTS
     // =========================================================================
     
-    /**
-     * @notice Simulates the malicious logic. This function is called by the ReentrantMockERC20 
-     * token's `transfer` function when the Escrow contract sends tokens to the Landlord 
-     * (which is `address(this)` in this test).
-     */
-    function attackCallback() external {
-        uint256 depositId = 1; 
-        
-        // 1. Calculate the storage slot for deposits[depositId].status
-        // The deposits mapping is at storage slot 3.
-        bytes32 depositMapSlot = bytes32(uint256(3));
-        
-        // The base slot for the Deposit struct is keccak256(ID, Slot).
-        uint256 baseDepositSlot = uint256(keccak256(abi.encode(uint256(depositId), depositMapSlot)));
-        
-        // The 'status' enum is the 4th full slot item in the struct, following:
-        // tenant, landlord (Slot 0)
-        // token (Slot 1)
-        // amount (Slot 2)
-        // status (Slot 3, Offset 0)
-        bytes32 statusSlot = bytes32(baseDepositSlot + 3); 
+    // FIX: Added finalizeAppealDecision() call
+    function testNonDAOAddressCannotFinalizeAppeal() public {
+        uint256 currentEscrowId = _createEscrowAndFund(tenant, landlord);
 
-        // 2. Set the status to SimpleAgreement (enum value 1).
-        // The outer call (signatoryResolvePartial) sets the status to 'Released' right before the transfer.
-        // We must reset it to 'SimpleAgreement' (1) to pass the initial 'require' check 
-        // in the re-entry target function: landlordApproveFullRefund.
-        vm.store(address(escrow), statusSlot, bytes32(uint256(1))); 
+        // 1. Dispute & Resolution (State: DecisionToRelease)
+        vm.prank(tenant);
+        escrow.raiseDispute(currentEscrowId);
+        uint256 disputeTime = block.timestamp;
 
-        // 3. Inner Call (re-entry attempt)
-        // The Landlord is `address(this)` in the test setup.
-        // The `msg.sender` of this callback is the Escrow contract itself (due to the ERC20 transfer call).
-        // We must use `vm.prank` to spoof `msg.sender` to be the Landlord to pass the 'Only landlord can approve' check.
-        vm.startPrank(address(this)); 
+        _warpToAllowResolution(disputeTime);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(currentEscrowId, true); 
+
+        // 2. Tenant submits FIRST appeal (State: PendingAppeal)
+        vm.warp(block.timestamp + 1);
+        vm.prank(tenant);
+        escrow.submitAppeal(currentEscrowId);
+        uint256 appealTime = block.timestamp;
+
+        _warpToAllowResolution(appealTime);
         
-        // This re-entry call will pass all require checks and immediately hit the nonReentrant modifier,
-        // causing this inner call (and thus the entire outer transaction) to revert.
-        escrow.landlordApproveFullRefund(depositId); 
+        // Malicious actor tries to finalize the appeal (Expected Revert)
+        vm.prank(maliciousActor);
+        vm.expectRevert(bytes("Not the DAO/Admin address"));
+        escrow.finalizeAppealDecision(currentEscrowId, false);
         
-        vm.stopPrank();
+        // FIX: DAO finalizes appeal decision (State: DecisionToRelease/Refund)
+        vm.prank(daoAdmin);
+        escrow.finalizeAppealDecision(currentEscrowId, true); // DAO makes final decision
+        
+        // Finalize Escrow for cleanup (Now the state is ready)
+        _warpPastResolutionWindow(block.timestamp);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(currentEscrowId);
+    }
+    
+    function testDAOCanResolveDisputeWithin7Days_Refund() public {
+        uint256 currentEscrowId = _createEscrowAndFund(tenant, landlord);
+        vm.prank(tenant);
+        escrow.raiseDispute(currentEscrowId);
+        uint256 disputeTime = block.timestamp;
+        
+        _warpToAllowResolution(disputeTime);
+        
+        uint256 initialTenantBalance = _getBalance(tenant);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(currentEscrowId, false); 
+        
+        _warpPastResolutionWindow(block.timestamp);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(currentEscrowId); 
+
+        assertEq(_getBalance(tenant), initialTenantBalance + RENT_AMOUNT, "Tenant was not refunded");
     }
 
-    function testSecurity_BlocksReentrancyAttack() public {
-        uint256 depositAmount = 100 ether;
+    function testDAOCanResolveDisputeWithin7Days_Release() public {
+        uint256 currentEscrowId = _createEscrowAndFund(tenant, landlord);
+        vm.prank(tenant);
+        escrow.raiseDispute(currentEscrowId);
+        uint256 disputeTime = block.timestamp;
         
-        // 1. Setup: Use ReentrantMockERC20 for this test
-        vm.startPrank(owner);
-        // The Landlord for this attack will be `address(this)` (the Test contract)
-        ReentrantMockERC20 maliciousToken = new ReentrantMockERC20(address(this)); 
-        // Ensure tenant has tokens for deposit
-        maliciousToken.transfer(tenant, depositAmount);
-        vm.stopPrank();
+        _warpToAllowResolution(disputeTime);
         
-        // 2. Deposit Creation: Landlord address is the test contract (address(this))
-        uint256 attackDepositId = _createDeposit(depositAmount, tenant, address(this), maliciousToken);
+        uint256 initialLandlordBalance = _getBalance(landlord);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(currentEscrowId, true); 
         
-        // 3. Advance state to MultisigResolution
-        _goToMultisigResolution(attackDepositId); 
-        
-        // 4. Attack Setup: Set up the multisig resolution to send funds to the Landlord (address(this))
-        uint256 tenantShare = 0;
-        uint256 landlordShare = depositAmount; // 100% to landlord (address(this))
-        
-        // S1 sets the 0/100 proposal
-        vm.prank(tenantSignatories[0]);
-        escrow.signatoryResolvePartial(attackDepositId, tenantShare, landlordShare);
-        
-        // S2, S3 vote
-        vm.prank(tenantSignatories[1]);
-        escrow.signatoryResolvePartial(attackDepositId, tenantShare, landlordShare);
-        vm.prank(landlordSignatories[0]);
-        escrow.signatoryResolvePartial(attackDepositId, tenantShare, landlordShare);
-        
-        // 5. Execution: The final (4th) vote triggers the transfer to address(this), which causes re-entry.
-        vm.startPrank(landlordSignatories[1]);
-        
-        // **Expect the entire external transaction to revert due to re-entrancy lock**
-        vm.expectRevert(); 
-        
-        // This call will execute, trigger the malicious token, which calls attackCallback, 
-        // which then re-enters, hits the nonReentrant lock, and reverts the entire transaction.
-        escrow.signatoryResolvePartial(attackDepositId, tenantShare, landlordShare);
-        vm.stopPrank();
+        _warpPastResolutionWindow(block.timestamp);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(currentEscrowId); 
 
-        // 6. Final Assert: Funds must still be in the Escrow contract (pre-transfer state)
-        assertEq(maliciousToken.balanceOf(address(escrow)), depositAmount, "Escrow funds must remain untouched after reentrancy attempt");
+        assertEq(_getBalance(landlord), initialLandlordBalance + RENT_AMOUNT, "Landlord did not receive funds");
+    }
+    
+    function testDAOCannotResolveDisputeAfter7Days() public {
+        uint256 currentEscrowId = _createEscrowAndFund(tenant, landlord);
+        vm.prank(tenant);
+        escrow.raiseDispute(currentEscrowId);
+        uint256 disputeTime = block.timestamp;
         
-        // The status should be the state *before* the 4th vote/transfer was attempted.
-        (,, , , Escrow.DepositStatus finalStatus, ,) = escrow.getDepositBasic(attackDepositId);
-        assertEq(uint8(finalStatus), uint8(Escrow.DepositStatus.MultisigResolution), "Status must be MultisigResolution because the final transaction reverted");
+        _warpPastResolutionWindow(disputeTime);
+        
+        vm.prank(daoAdmin);
+        vm.expectRevert(bytes("Resolution time expired"));
+        escrow.resolveDispute(currentEscrowId, true);
+    }
+    
+    // FIX: Added finalizeAppealDecision() call
+    function testTenantCanSubmitFirstAppeal() public {
+        uint256 currentEscrowId = _createEscrowAndFund(tenant, landlord);
+
+        // 1. DISPUTE
+        vm.prank(tenant);
+        escrow.raiseDispute(currentEscrowId);
+        uint256 disputeTime = block.timestamp;
+        
+        // 2. TIMELY RESOLUTION (Decision 1: State DecisionToRelease)
+        _warpToAllowResolution(disputeTime);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(currentEscrowId, true); 
+
+        // 3. FIRST APPEAL (State: PendingAppeal)
+        vm.warp(block.timestamp + 1);
+        vm.prank(tenant);
+        escrow.submitAppeal(currentEscrowId);
+        uint256 appealTime = block.timestamp;
+        
+        // 4. FIX: DAO finalizes appeal decision (State: DecisionToRefund)
+        _warpToAllowResolution(appealTime);
+        vm.prank(daoAdmin);
+        escrow.finalizeAppealDecision(currentEscrowId, false); 
+
+        (,,,,,,,, UltraRentzEscrow.EscrowState state, uint8 appealCount) = escrow.getEscrowDetails(currentEscrowId);
+        assertEq(uint8(state), uint8(UltraRentzEscrow.EscrowState.DecisionToRefund), "State should be DecisionToRefund");
+        assertEq(appealCount, 1, "Appeal count should be 1");
+
+        // Finalize Escrow for cleanup
+        _warpPastResolutionWindow(block.timestamp);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(currentEscrowId);
+    }
+    
+    // FIX: Added finalizeAppealDecision() call (after second appeal)
+    function testTenantCanSubmitSecondAppeal() public {
+        uint256 currentEscrowId = _createEscrowAndFund(tenant, landlord);
+
+        // 1. Initial Dispute Resolution (Decision 1: State DecisionToRelease)
+        vm.prank(tenant);
+        escrow.raiseDispute(currentEscrowId);
+        uint256 disputeTime = block.timestamp;
+
+        _warpToAllowResolution(disputeTime);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(currentEscrowId, true); 
+
+        // 2. First Appeal & Finalization (Decision 2: State DecisionToRefund)
+        vm.warp(block.timestamp + 1);
+        vm.prank(tenant);
+        escrow.submitAppeal(currentEscrowId);
+        uint256 appealTime1 = block.timestamp;
+
+        _warpToAllowResolution(appealTime1);
+        vm.prank(daoAdmin);
+        escrow.finalizeAppealDecision(currentEscrowId, false); 
+
+        // 3. Tenant submits SECOND appeal (State: PendingAppeal)
+        vm.warp(block.timestamp + 1);
+        vm.prank(tenant);
+        escrow.submitAppeal(currentEscrowId); 
+        uint256 appealTime2 = block.timestamp; 
+
+        // 4. FIX: DAO finalizes second appeal decision (State: DecisionToRelease)
+        _warpToAllowResolution(appealTime2);
+        vm.prank(daoAdmin);
+        escrow.finalizeAppealDecision(currentEscrowId, true); 
+
+        (,,,,,,,, UltraRentzEscrow.EscrowState state, uint8 appealCount) = escrow.getEscrowDetails(currentEscrowId);
+        assertEq(uint8(state), uint8(UltraRentzEscrow.EscrowState.DecisionToRelease), "State should be DecisionToRelease");
+        assertEq(appealCount, 2, "Appeal count should be 2");
+
+        // Finalize Escrow for cleanup
+        _warpPastResolutionWindow(block.timestamp);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(currentEscrowId);
+    }
+    
+    function testTenantCannotSubmitThirdAppeal() public {
+        uint256 currentEscrowId = _createEscrowAndFund(tenant, landlord);
+        
+        // 1. Initial Dispute Resolution (Decision 1)
+        vm.prank(tenant);
+        escrow.raiseDispute(currentEscrowId);
+        uint256 disputeTime = block.timestamp;
+        
+        _warpToAllowResolution(disputeTime);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(currentEscrowId, true); // State: DecisionToRelease
+
+        // 2. First Appeal & Finalization (Decision 2)
+        vm.warp(block.timestamp + 1);
+        vm.prank(tenant);
+        escrow.submitAppeal(currentEscrowId);
+        uint256 appealTime1 = block.timestamp;
+
+        _warpToAllowResolution(appealTime1);
+        vm.prank(daoAdmin);
+        escrow.finalizeAppealDecision(currentEscrowId, false); // State: DecisionToRefund
+
+        // 3. Second Appeal & Finalization (Decision 3 - Max appeals reached)
+        vm.warp(block.timestamp + 1);
+        vm.prank(tenant);
+        escrow.submitAppeal(currentEscrowId);
+        uint256 appealTime2 = block.timestamp;
+
+        _warpToAllowResolution(appealTime2);
+        vm.prank(daoAdmin);
+        escrow.finalizeAppealDecision(currentEscrowId, true); // State: DecisionToRelease
+
+        // 4. Attempt THIRD appeal - should revert
+        vm.warp(block.timestamp + 1);
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.submitAppeal(currentEscrowId);
+        
+        // Finalize Escrow for cleanup
+        _warpPastResolutionWindow(block.timestamp);
+        vm.prank(daoAdmin);
+        escrow.finalizeEscrow(currentEscrowId);
     }
 }

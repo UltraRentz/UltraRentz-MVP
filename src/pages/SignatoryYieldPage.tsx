@@ -1,4 +1,39 @@
+        {/* What is URZ Token? */}
+        <div className="mb-6">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 rounded p-4 max-w-2xl mx-auto">
+            <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-200 mb-1">What is the URZ Token?</h3>
+            <p className="text-gray-700 dark:text-gray-200">
+              <b>URZ is the UltraRentz rewards token.</b> You earn URZ automatically for every rent deposit you hold or manage. URZ can be grown for more rewards, or instantly exchanged for pounds, dollars, or your favorite crypto—just like reward points, but more flexible and valuable.
+            </p>
+          </div>
+        </div>
 import React, { useState, useEffect } from "react";
+import { fetchTokenPrice } from '../utils/fetchTokenPrice';
+// Default static rates (used as fallback)
+const STATIC_URZ_GBP = 0.8;
+const STATIC_URZ_USD = 1.0;
+const STATIC_GBP_USD = 1.25;
+// Popular fiat currencies
+const FIAT_OPTIONS = [
+  { label: 'GBP (£)', value: 'gbp', symbol: '£' },
+  { label: 'USD ($)', value: 'usd', symbol: '$' },
+  { label: 'EUR (€)', value: 'eur', symbol: '€' },
+  { label: 'JPY (¥)', value: 'jpy', symbol: '¥' },
+  { label: 'CNY (¥)', value: 'cny', symbol: '¥' },
+  { label: 'INR (₹)', value: 'inr', symbol: '₹' },
+  { label: 'AUD (A$)', value: 'aud', symbol: 'A$' },
+  { label: 'CAD (C$)', value: 'cad', symbol: 'C$' },
+  { label: 'CHF (Fr)', value: 'chf', symbol: 'Fr' },
+];
+// Popular tokens (stablecoins and majors)
+const TOKEN_OPTIONS = [
+  { label: 'URZ', value: 'urz', symbol: 'URZ' },
+  { label: 'USDT', value: 'usdt', symbol: 'USDT' },
+  { label: 'USDC', value: 'usdc', symbol: 'USDC' },
+  { label: 'DAI', value: 'dai', symbol: 'DAI' },
+  { label: 'ETH', value: 'eth', symbol: 'ETH' },
+  { label: 'BTC', value: 'btc', symbol: 'BTC' },
+];
 import StatCard from "../components/StatCard";
 import YieldChart from "../components/YieldChart";
 import YieldForm from "../components/YieldForm";
@@ -6,9 +41,55 @@ import { useAuth } from "../contexts/AuthContext";
 import { yieldsApi, yieldDepositsApi } from "../services/api";
 import { authService } from "../services/authService";
 
-const SignatoryYieldPage: React.FC = () => {
+const YieldPage: React.FC = () => {
   const { authState } = useAuth();
   const [isClaiming, setIsClaiming] = useState(false);
+  // Auto-detect user locale for fiat currency (default to GBP)
+  const getDefaultFiat = () => {
+    if (typeof window !== 'undefined' && window.navigator) {
+      const lang = window.navigator.language;
+      if (lang.startsWith('en-US')) return FIAT_OPTIONS[1]; // USD
+      if (lang.startsWith('en-GB')) return FIAT_OPTIONS[0]; // GBP
+      if (lang.startsWith('de')) return FIAT_OPTIONS[2]; // EUR
+      if (lang.startsWith('fr')) return FIAT_OPTIONS[2]; // EUR
+      if (lang.startsWith('ja')) return FIAT_OPTIONS[3]; // JPY
+      if (lang.startsWith('zh')) return FIAT_OPTIONS[4]; // CNY
+      if (lang.startsWith('hi')) return FIAT_OPTIONS[5]; // INR
+      if (lang.startsWith('en-AU')) return FIAT_OPTIONS[6]; // AUD
+      if (lang.startsWith('en-CA')) return FIAT_OPTIONS[7]; // CAD
+    }
+    return FIAT_OPTIONS[0];
+  };
+  const [currencyType, setCurrencyType] = useState<'fiat' | 'token'>('fiat');
+  const [currency, setCurrency] = useState(getDefaultFiat());
+  const [urzGbp, setUrzGbp] = useState<number>(STATIC_URZ_GBP);
+  const [urzUsd, setUrzUsd] = useState<number>(STATIC_URZ_USD);
+    // Fetch live URZ price (GBP, USD, EUR, etc.) on mount and when currency changes
+    useEffect(() => {
+      async function fetchPrices() {
+        // Example: fetch URZ price in selected fiat
+        if (currencyType === 'fiat') {
+          const price = await fetchTokenPrice('urz-token', currency.value);
+          if (price) setUrzGbp(price); // reuse urzGbp for any fiat for now
+        } else if (currencyType === 'token') {
+          // For tokens, set conversion to 1 if URZ, or fetch cross-token price
+          setUrzGbp(1); // For URZ, 1:1
+          // TODO: fetch cross-token prices for USDT, USDC, DAI, ETH, BTC
+        }
+      }
+      fetchPrices();
+    }, [currency, currencyType]);
+  // Helper to convert URZ to selected currency
+  // Show both fiat and URZ for clarity
+  const toDisplay = (urzAmount: string | number | undefined) => {
+    if (!urzAmount || isNaN(Number(urzAmount))) return '0.00';
+    const urz = parseFloat(urzAmount as string);
+    if (currencyType === 'token') {
+      return `${(urz * urzGbp).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${currency.symbol}`;
+    }
+    // Fiat: show both
+    return `${currency.symbol}${(urz * urzGbp).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}  <span class='text-xs text-gray-500 ml-2'>(${urz.toFixed(2)} URZ)</span>`;
+  };
 
   // State for API data
   const [yieldSummary, setYieldSummary] = useState({
@@ -144,6 +225,7 @@ const SignatoryYieldPage: React.FC = () => {
         deposit_amount: formData.depositAmount,
         duration: formData.duration,
         expectedAPY: formData.expectedAPY,
+        useAave: !!formData.useAave,
       });
 
       console.log("Yield deposit created successfully:", response.data);
@@ -193,20 +275,107 @@ const SignatoryYieldPage: React.FC = () => {
       style={{ backgroundColor: "var(--bg-color)", color: "var(--text-color)" }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* What is URZ Token? */}
+        <div className="mb-6">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 rounded p-4 max-w-2xl mx-auto">
+            <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-200 mb-1">What is the URZ Token?</h3>
+            <p className="text-gray-700 dark:text-gray-200">
+              <b>URZ is the UltraRentz rewards token.</b> You earn URZ automatically for every rent deposit you hold or manage. URZ can be grown for more rewards, or instantly exchanged for pounds, dollars, or your favorite crypto—just like reward points, but more flexible and valuable.
+            </p>
+          </div>
+        </div>
+        {/* WOW Feature: Grow My Deposit */}
         <div className="text-center mb-12">
           <h1
             style={{ color: "var(--text-color)" }}
-            className="text-4xl font-bold text-gray-900 dark:text-white mb-4"
+            className="text-4xl font-bold text-blue-700 dark:text-blue-300 mb-4"
           >
-            Deposit Yield Dashboard
+            Grow My Deposit 🚀
           </h1>
           <p
             style={{ color: "var(--text-color)" }}
-            className="text-lg text-gray-600 dark:text-gray-400"
+            className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-4"
           >
-            Real-time visualization and interaction with rent deposit yields.
-            View accrued interest, monitor APY, and claim your yield.
+            <b>Turn your rent deposit into a personal asset.</b> Earn real, claimable yield while your deposit is protected and locked for your tenancy. No DeFi jargon, no complexity—just more money for you.
           </p>
+          {/* Currency Selector */}
+          <div className="flex justify-center mb-6 gap-4">
+            <div>
+              <label className="mr-2 font-semibold">Show yield in:</label>
+              <select
+                className="p-2 rounded border"
+                value={currencyType}
+                onChange={e => {
+                  setCurrencyType(e.target.value as 'fiat' | 'token');
+                  if (e.target.value === 'fiat') setCurrency(getDefaultFiat());
+                  else setCurrency(TOKEN_OPTIONS[0]);
+                }}
+              >
+                <option value="fiat">Currency</option>
+                <option value="token">Token</option>
+              </select>
+            </div>
+            {currencyType === 'fiat' ? (
+              <div>
+                <label className="mr-2 font-semibold">Currency:</label>
+                <select
+                  className="p-2 rounded border"
+                  value={currency.value}
+                  onChange={e => {
+                    const c = FIAT_OPTIONS.find(opt => opt.value === e.target.value);
+                    if (c) setCurrency(c);
+                  }}
+                >
+                  {FIAT_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="mr-2 font-semibold">Token:</label>
+                <select
+                  className="p-2 rounded border"
+                  value={currency.value}
+                  onChange={e => {
+                    const c = TOKEN_OPTIONS.find(opt => opt.value === e.target.value);
+                    if (c) setCurrency(c);
+                  }}
+                >
+                  {TOKEN_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 mt-6">
+            <div className="bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-xl p-6 shadow-lg w-full max-w-md">
+              <div className="text-2xl font-semibold mb-2 text-blue-700 dark:text-blue-200">Projected Yield</div>
+              <div className="text-3xl font-mono mb-1 text-green-600 dark:text-green-300" dangerouslySetInnerHTML={{__html: isLoading ? '...' : toDisplay(yieldSummary?.claimableYield)}} />
+              <div className="text-sm text-gray-500 mb-2">Based on your current deposit and APY</div>
+              <button
+                onClick={() => window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow hover:bg-blue-700 transition"
+              >
+                Start Growing
+              </button>
+            </div>
+            <div className="bg-gradient-to-br from-green-100 to-blue-100 dark:from-green-900/30 dark:to-blue-900/30 rounded-xl p-6 shadow-lg w-full max-w-md">
+              <div className="text-2xl font-semibold mb-2 text-green-700 dark:text-green-200">Actual Yield</div>
+              <div className="text-3xl font-mono mb-1 text-purple-600 dark:text-purple-300" dangerouslySetInnerHTML={{__html: isLoading ? '...' : toDisplay(yieldSummary?.totalYield)}} />
+              <div className="text-sm text-gray-500 mb-2">Earned so far on your deposit</div>
+              {authState.isAuthenticated && parseFloat(yieldSummary?.claimableYield || '0') > 0 && (
+                <button
+                  onClick={handleClaimYield}
+                  disabled={isClaiming}
+                  className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow hover:bg-purple-700 transition mt-2"
+                >
+                  {isClaiming ? 'Claiming...' : <span dangerouslySetInnerHTML={{__html: `Claim ${toDisplay(yieldSummary.claimableYield)}`}} />}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Yield Summary Cards */}
@@ -220,79 +389,68 @@ const SignatoryYieldPage: React.FC = () => {
           />
           <StatCard
             title="Total Yield Earned"
-            value={
-              isLoading ? "..." : `${yieldSummary?.totalYield || "0.0000"} URZ`
-            }
+            value={<span dangerouslySetInnerHTML={{__html: isLoading ? "..." : toDisplay(yieldSummary?.totalYield)}} />}
             subtitle="Lifetime earnings"
             color="green"
             icon="💰"
           />
           <StatCard
             title="Claimable Rewards"
-            value={
-              isLoading
-                ? "..."
-                : `${yieldSummary?.claimableYield || "0.0000"} URZ`
-            }
+            value={<span dangerouslySetInnerHTML={{__html: isLoading ? "..." : toDisplay(yieldSummary?.claimableYield)}} />}
             subtitle="Ready to claim"
             color="purple"
             icon="🎁"
           />
           <StatCard
             title="Active Deposits"
-            value={
-              isLoading ? "..." : (yieldSummary?.activeDeposits || 0).toString()
-            }
+            value={isLoading ? "..." : (yieldSummary?.activeDeposits || 0).toString()}
             subtitle="Earning yield"
             color="orange"
             icon="🔒"
           />
         </div>
 
-        {/* Why Stake Section */}
+        {/* Dual-Reward System Section */}
         <div className="mb-8">
           <h2
             style={{ color: "var(--text-color)" }}
             className="text-2xl font-bold text-gray-900 dark:text-white mb-6"
           >
-            Why Stake as a Signatory?
+            How You Earn Extra Rewards
           </h2>
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">💰</span>
+                  <span className="text-2xl">💸</span>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Earn Yield Rewards
+                  Earn Rewards on Every Deposit
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Stake your URZ tokens to earn competitive APY rewards while
-                  participating in the platform
+                  For every rent deposit you hold, you automatically earn URZ reward points. The more deposits you manage, the more you earn—no extra effort needed.
                 </p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🗳️</span>
+                  <span className="text-2xl">🌱</span>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Increase Voting Power
+                  Grow Your Rewards
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Higher stake = more influence in DAO governance and dispute
-                  resolution decisions
+                  You can grow your URZ rewards for even more yield—just like a savings account. Or, cash out your URZ to any currency or token you prefer, anytime.
                 </p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🛡️</span>
+                  <span className="text-2xl">🏦</span>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Build Reputation
+                  Simple, Secure, Flexible
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Demonstrate commitment to the platform and earn trust from
-                  renters and landlords
+                  No jargon. No hassle. Your rewards are always visible, always yours, and can be withdrawn or grown further with one click.
                 </p>
               </div>
             </div>
@@ -301,17 +459,10 @@ const SignatoryYieldPage: React.FC = () => {
                 How It Works:
               </h4>
               <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                <li>
-                  Stake your URZ tokens for a chosen duration (30-365 days)
-                </li>
-                <li>
-                  Participate in 4-of-6 multisig voting on deposit releases
-                </li>
-                <li>Earn yield rewards based on your stake amount and APY</li>
-                <li>
-                  Higher stakes earn better rewards and have more voting
-                  influence
-                </li>
+                <li>For every rent deposit, you earn URZ reward points automatically.</li>
+                <li>Grow your URZ for more rewards, or cash out to pounds, dollars, or your favorite token—anytime.</li>
+                <li>The more deposits you manage, the more you earn. It’s that simple.</li>
+                <li>Your original deposit is always protected and returned at the end of the tenancy.</li>
               </ol>
             </div>
           </div>
@@ -523,7 +674,7 @@ const SignatoryYieldPage: React.FC = () => {
                           </p>
                           <p className="text-sm">
                             {authState.isAuthenticated
-                              ? "Start participating as a signatory to earn rewards!"
+                              ? "Start earning yield rewards on your deposit!"
                               : "Connect your wallet to start earning yield rewards"}
                           </p>
                         </div>
@@ -550,4 +701,4 @@ const SignatoryYieldPage: React.FC = () => {
   );
 };
 
-export default SignatoryYieldPage;
+export default YieldPage;

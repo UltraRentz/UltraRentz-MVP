@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
+// import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "../contexts/AuthContext";
 
 interface MobileMenuProps {
@@ -12,13 +12,11 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
   const { authState, connectWallet, logout, isMetaMaskAvailable } = useAuth();
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const menuItems = [
-    { name: "Home", path: "/" },
-    { name: "Rent Deposits", path: "/rent-deposits" },
-    { name: "Signatory Yields", path: "/signatory-yield" },
-    { name: "Disputes", path: "/disputes" },
-    { name: "Dashboard", path: "/dashboard" },
-  ];
+    const menuItems = [
+      { name: "Home", path: "/", title: "Go to the homepage. See an overview of what UltraRentz can do for you." },
+      { name: "Disputes", path: "/disputes", title: "Get help if there’s a disagreement about a deposit." },
+      { name: "Dashboard", path: "/dashboard", title: "See all your activity and manage your account." },
+    ];
 
   const handleConnectWallet = async () => {
     if (authState.isAuthenticated) {
@@ -67,7 +65,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
             </span>
           </div>
           <div className="flex items-center space-x-4">
-            <ThemeToggle />
+            {/* ThemeToggle removed */}
             <button
               onClick={onClose}
               className="hover:text-blue-400 focus:outline-none"
@@ -100,6 +98,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
                 className="hover:text-blue-400 transition-colors duration-300 text-xl font-medium block py-3"
                 style={{ color: "var(--text-color)" }}
                 onClick={onClose}
+                title={item.title}
               >
                 {item.name}
               </Link>

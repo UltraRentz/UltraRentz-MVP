@@ -1,3 +1,4 @@
+
 [profile.default]
 solc_version = '0.8.27'
 evm_version = 'prague'
@@ -5,7 +6,7 @@ optimizer = true
 optimizer-runs = 200
 src = 'contracts'
 out = 'out'
-libs = ['lib'] 
+libs = ['lib']
 test = 'test'
 cache_path = 'cache_forge'
 fs_permissions = [{ access = "read", path = "./test/bin" }]
@@ -18,3 +19,9 @@ remappings = [
 [fuzz]
 runs = 5000
 max_test_rejects = 150000
+
+# Tenderly integration
+[tenderly]
+project = "${TENDERLY_PROJECT}"
+username = "${TENDERLY_USERNAME}"
+access_key = "${TENDERLY_ACCESS_KEY}"

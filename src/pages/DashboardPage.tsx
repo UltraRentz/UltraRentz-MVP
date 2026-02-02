@@ -305,10 +305,10 @@ const DashboardPage: React.FC = () => {
               Create Deposit
             </a>
             <a
-              href="/signatory-yield"
+              href="/yield"
               className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-4 rounded-lg font-semibold text-lg transition-colors duration-200 text-center block"
             >
-              View Signatory Yield
+              View Yield
             </a>
             <a
               href="/disputes"

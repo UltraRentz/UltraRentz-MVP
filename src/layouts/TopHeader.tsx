@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import ThemeToggle from "../components/ThemeToggle";
+// import ThemeToggle from "../components/ThemeToggle";
 import { useAuth } from "../contexts/AuthContext";
 
 interface TopHeaderProps {
@@ -59,6 +59,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMobileMenuToggle }) => {
               style={{ color: "var(--text-color)" }}
               to="/"
               className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+              title="Go to the homepage. See an overview of what UltraRentz can do for you."
             >
               Home
             </Link>
@@ -66,20 +67,23 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMobileMenuToggle }) => {
               style={{ color: "var(--text-color)" }}
               to="/rent-deposits"
               className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+              title="Start a new deposit for a tenant or view deposit options."
             >
               Rent Deposits
             </Link>
             <Link
               style={{ color: "var(--text-color)" }}
-              to="/signatory-yield"
+              to="/yield"
               className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+              title="See how much interest you’ve earned on your deposits."
             >
-              Signatory Yield
+              Yield
             </Link>
             <Link
               style={{ color: "var(--text-color)" }}
               to="/disputes"
               className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+              title="Get help if there’s a disagreement about a deposit."
             >
               Disputes
             </Link>
@@ -94,7 +98,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMobileMenuToggle }) => {
 
           {/* Right Side - Desktop */}
           <div className="hidden lg:flex items-center space-x-3">
-            <ThemeToggle />
+            {/* ThemeToggle removed */}
             {authState.isAuthenticated ? (
               <div className="flex items-center space-x-3">
                 <div className="text-sm text-gray-300">
@@ -125,7 +129,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMobileMenuToggle }) => {
 
           {/* Mobile Menu Button */}
           <div className="lg:hidden flex items-center space-x-3">
-            <ThemeToggle />
+            {/* ThemeToggle removed */}
             <button
               onClick={onMobileMenuToggle}
               className="text-gray-300 hover:text-white focus:outline-none p-2"

@@ -194,6 +194,7 @@ export const yieldDepositsApi = {
     deposit_amount: string;
     duration: string;
     expectedAPY: string;
+    useAave?: boolean;
   }): Promise<ApiResponse<{ id: string; message: string; data: any }>> =>
     api.post("/yield-deposits", data),
 

@@ -12,6 +12,7 @@ interface YieldDepositAttributes {
   activated_at: Date | null;
   completed_at: Date | null;
   tx_hash: string | null;
+  use_aave: boolean;
 }
 
 interface YieldDepositCreationAttributes
@@ -42,6 +43,11 @@ YieldDeposit.init(
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
+    },
+    use_aave: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
     user_address: {
       type: DataTypes.STRING,

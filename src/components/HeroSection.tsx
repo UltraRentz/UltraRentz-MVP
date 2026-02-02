@@ -86,76 +86,72 @@ const HeroSection: React.FC = () => {
               style={{ color: "var(--text-color)" }}
             >
               <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent font-semibold">
-                Securing, Protecting and Monetising
+                Protect • Grow • Resolve
               </span>
               <br />
               <span style={{ color: "var(--text-color)", opacity: 0.8 }}>
-                Your Rent Deposits with
-              </span>
-              <br />
-              <span className="text-blue-400 font-semibold">
-                Blockchain Technology
+                The premium way to manage and grow your rent deposits
               </span>
             </h2>
             <p
               className="text-base sm:text-lg mb-8 sm:mb-12 leading-relaxed max-w-4xl mx-auto px-4"
               style={{ color: "var(--text-color)", opacity: 0.7 }}
             >
-              Secure, transparent, and fair deposit management with 4-of-6
-              multisig governance, dispute resolution, and yield rewards for
-              signatories.
+              Secure, transparent, and fair deposit management for renters and landlords.<br/>
+              Enjoy independent dispute resolution, interest rewards, non-fiat payment options, and deposit passporting—all with the simplicity of a modern finance app.
             </p>
 
-            {/* CTA Buttons */}
+            {/* CTA Buttons - Clearer Labels with Tooltips */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 sm:mb-16 px-4">
               <Link
                 to="/rent-deposits"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-full font-semibold text-base sm:text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-center"
+                title="Protect: Start a new deposit to keep your tenant’s money safe and secure."
+                data-motto="Protect"
               >
-                Create Deposit
+                Start a New Deposit
               </Link>
               <Link
                 style={{ color: "var(--text-color)" }}
                 to="/dashboard"
                 className="border-2 border-gray-600 hover:border-blue-400 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-full font-semibold text-base sm:text-lg transition-all duration-300 hover:bg-white/5 text-center"
+                title="Grow: View your deposits and see how much interest you’ve earned."
+                data-motto="Grow"
               >
-                Learn More
+                View My Deposits
               </Link>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 text-center px-4">
-              <div>
-                <div className="text-2xl sm:text-3xl font-bold text-blue-400">
-                  4-of-6
-                </div>
-                <div
-                  className="text-xs sm:text-sm"
-                  style={{ color: "var(--text-color)", opacity: 0.6 }}
-                >
-                  Multisig Security
+            {/* Core Features - Plain English, No Jargon, With Tooltips */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 sm:gap-8 text-center px-4 mt-8">
+              <div title="Pay or receive deposits by bank, card, or your preferred method. No crypto or technical setup needed.">
+                <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">Flexible Payment Options</div>
+                <div className="text-xs sm:text-sm" style={{ color: "var(--text-color)", opacity: 0.7 }}>
+                  Pay or receive deposits by bank, card, or your preferred method—no crypto knowledge needed.
                 </div>
               </div>
-              <div>
-                <div className="text-2xl sm:text-3xl font-bold text-purple-400">
-                  100%
-                </div>
-                <div
-                  className="text-xs sm:text-sm"
-                  style={{ color: "var(--text-color)", opacity: 0.6 }}
-                >
-                  Transparent
+              <div title="Your deposit is sent back to you automatically at the end of the tenancy. No paperwork or chasing required.">
+                <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">Automatic Deposit Return</div>
+                <div className="text-xs sm:text-sm" style={{ color: "var(--text-color)", opacity: 0.7 }}>
+                  Your deposit is sent back to you automatically at the end of the tenancy—no paperwork needed.
                 </div>
               </div>
-              <div>
-                <div className="text-2xl sm:text-3xl font-bold text-pink-400">
-                  Yield
+              <div title="If there’s a disagreement, our team helps resolve it quickly and fairly for everyone.">
+                <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">Get Help with Disputes</div>
+                <div className="text-xs sm:text-sm" style={{ color: "var(--text-color)", opacity: 0.7 }}>
+                  If there’s a disagreement, our team helps resolve it quickly and fairly for everyone.
                 </div>
-                <div
-                  className="text-xs sm:text-sm"
-                  style={{ color: "var(--text-color)", opacity: 0.6 }}
-                >
-                  Rewards
+              </div>
+              <div title="Watch your deposit grow with interest while it’s safely held for you. You keep all the earnings.">
+                <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">Interest Earned</div>
+                <div className="text-xs sm:text-sm" style={{ color: "var(--text-color)", opacity: 0.7 }}>
+                  Watch your deposit grow with interest while it’s safely held for you.
+                </div>
+              </div>
+              <div title="Take your deposit record with you when you move to a new property or landlord. No hassle, no extra steps.">
+                <div className="text-2xl sm:text-3xl font-bold text-pink-400 mb-2">Move Deposit Easily</div>
+                <div className="text-xs sm:text-sm" style={{ color: "var(--text-color)", opacity: 0.7 }}>
+                  Take your deposit record with you when you move to a new property or landlord—no hassle.
                 </div>
               </div>
             </div>
