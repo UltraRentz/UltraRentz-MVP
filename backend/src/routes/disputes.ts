@@ -1,5 +1,14 @@
-
+import { Router } from "express";
 import { authenticate } from "../middleware/auth";
+import { optionalAuth } from "../middleware/auth";
+import {
+  DisputeController,
+  validateDepositId,
+  validateUserAddress,
+  validateDisputeQuery,
+} from "../controllers/disputeController";
+
+const router = Router();
 
 /**
  * @route POST /api/disputes/:depositId
@@ -11,16 +20,6 @@ router.post(
   authenticate,
   DisputeController.raiseDispute
 );
-import { Router } from "express";
-import {
-  DisputeController,
-  validateDepositId,
-  validateUserAddress,
-  validateDisputeQuery,
-} from "../controllers/disputeController";
-import { optionalAuth } from "../middleware/auth";
-
-const router = Router();
 
 /**
  * @route GET /api/disputes

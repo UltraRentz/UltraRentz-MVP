@@ -1,9 +1,9 @@
 // backend/src/services/notificationScheduler.ts
 // Scheduled job to send tenancy end notifications to tenants and landlords
 
-import cron from 'node-cron';
+// import cron from 'node-cron';
 import { Deposit } from '../models/Deposit';
-import { sendEmail } from '../../../server/sendgrid.cjs';
+// import { sendEmail } from '../../../server/sendgrid.cjs';
 
 // Helper to get days between two dates
 function daysBetween(date1: Date, date2: Date): number {
@@ -13,6 +13,8 @@ function daysBetween(date1: Date, date2: Date): number {
 
 // Main notification job
 export function startNotificationScheduler() {
+  console.log('🔔 Notification scheduler started (MOCKED - node-cron missing)');
+  /*
   // Run every day at 9am
   cron.schedule('0 9 * * *', async () => {
     const today = new Date();
@@ -41,4 +43,5 @@ export function startNotificationScheduler() {
     }
   });
   console.log('🔔 Notification scheduler started (runs daily at 9am)');
+  */
 }

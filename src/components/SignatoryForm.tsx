@@ -1,7 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useHelpFAQModal } from './useHelpFAQModal';
-import { sendVerificationEmail } from '../utils/emailVerification';
-import { startKYC, simulateKYCResult } from '../utils/kycProvider';
+import React, { useState, useEffect } from 'react';
+
 import { isDisposableEmail } from '../utils/disposableEmails';
 // Removed isAddress as we're now using email for input
 
@@ -11,8 +9,8 @@ interface SignatoryFormProps {
   setSignatories: (newSignatories: string[]) => void;
   otherGroupSignatories: string[];
   escrowId?: string; // Optional, for polling verification status
-  input: string;
-  setInput: (value: string) => void;
+  input?: string;
+  setInput?: (value: string) => void;
 }
 
 
@@ -22,13 +20,12 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
   setSignatories,
   otherGroupSignatories,
   escrowId,
-  input,
-  setInput,
+  input: _input,
+  setInput: _setInput,
 }) => {
   const [currentSignatoryInput, setCurrentSignatoryInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [pendingVerifications, setPendingVerifications] = useState<{[email: string]: boolean}>({});
+  const [_pendingVerifications, setPendingVerifications] = useState<{[email: string]: boolean}>({});
   const [verified, setVerified] = useState<{[email: string]: boolean}>({});
     // Poll backend for real verification status if escrowId is provided
     useEffect(() => {
@@ -52,7 +49,6 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
       interval = setInterval(poll, 20000); // poll every 20s
       return () => clearInterval(interval);
     }, [escrowId, signatories]);
-  const [kycStatus, setKycStatus] = useState<{[email: string]: 'pending' | 'verified' | 'failed'}>({});
 
   // Load draft from localStorage on mount
   useEffect(() => {
@@ -115,6 +111,7 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({
       setErrorMessage(`You can only add up to ${maxSignatories} people.`);
       return;
     }
+    setSignatories([...signatories, email]);
     setPendingVerifications((prev) => ({ ...prev, [email]: true }));
     setErrorMessage('A verification email has been sent. Please verify to add.');
     // Simulate sending verification email and user clicking it

@@ -1,3 +1,10 @@
+import { Request, Response } from "express";
+import { query, param, validationResult } from "express-validator";
+import { Dispute, Deposit, DisputeStatus } from "../models";
+import { logger } from "../middleware/errorHandler";
+import { Op } from "sequelize";
+
+export class DisputeController {
   /**
    * Raise a dispute (partial or full) by landlord
    */
@@ -12,7 +19,8 @@
         return;
       }
       // Only landlord can raise dispute
-      const userAddress = req.user?.address?.toLowerCase();
+      // @ts-ignore
+      const userAddress = req.user?.walletAddress?.toLowerCase();
       if (!userAddress || userAddress !== deposit.landlord_address) {
         res.status(403).json({ error: "Only the landlord can raise a dispute" });
         return;
@@ -31,7 +39,7 @@
       const dispute = await Dispute.create({
         deposit_id: deposit.id,
         triggered_by: userAddress,
-        status: "active",
+        status: DisputeStatus.ACTIVE,
         resolution: reason,
         tenant_amount: tenantAmount,
         landlord_amount: landlordAmount,
@@ -43,13 +51,7 @@
       res.status(500).json({ error: "Failed to raise dispute" });
     }
   }
-import { Request, Response } from "express";
-import { query, param, validationResult } from "express-validator";
-import { Dispute, Deposit } from "../models";
-import { logger } from "../middleware/errorHandler";
-import { Op } from "sequelize";
 
-export class DisputeController {
   /**
    * Get all disputes with optional filters
    */

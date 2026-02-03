@@ -2,7 +2,7 @@ import axios, { type AxiosInstance, type AxiosResponse } from "axios";
 
 // API Configuration
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  import.meta.env.VITE_API_BASE_URL || "/api";
 // Production API URL (use when Railway backend is properly configured)
 // const API_BASE_URL = "https://utlrarentx-backend-production.up.railway.app/api";
 

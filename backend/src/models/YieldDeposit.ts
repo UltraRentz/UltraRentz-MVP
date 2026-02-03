@@ -35,6 +35,7 @@ class YieldDeposit
   public activated_at!: Date | null;
   public completed_at!: Date | null;
   public tx_hash!: string | null;
+  public use_aave!: boolean;
 }
 
 YieldDeposit.init(

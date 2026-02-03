@@ -106,7 +106,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen pt-16"
+      className="min-h-screen pt-20"
       style={{ backgroundColor: "var(--bg-color)", color: "var(--text-color)" }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

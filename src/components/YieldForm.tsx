@@ -56,13 +56,14 @@ const YieldForm: React.FC<YieldFormProps> = ({
     }
 
     try {
-      if (formData.useAave && authState.isAuthenticated && authState.signer) {
+      if (formData.useAave && authState.isAuthenticated) {
         setIsSupplying(true);
         // Supply to Aave using the entered deposit amount
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
         const tx = await supplyToAave(
-          authState.provider,
-          authState.signer,
-          ethers.parseUnits(formData.depositAmount, 18)
+          signer,
+          ethers.utils.parseUnits(formData.depositAmount, 18)
         );
         await tx.wait();
         setIsSupplying(false);

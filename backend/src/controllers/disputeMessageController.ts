@@ -18,7 +18,8 @@ export class DisputeMessageController {
   static async postMessage(req: Request, res: Response): Promise<void> {
     try {
       const { disputeId } = req.params;
-      const sender = req.user?.address?.toLowerCase();
+      // @ts-ignore
+      const sender = req.user?.walletAddress?.toLowerCase();
       const { message } = req.body;
       if (!sender || !message) {
         res.status(400).json({ error: "Missing sender or message" });

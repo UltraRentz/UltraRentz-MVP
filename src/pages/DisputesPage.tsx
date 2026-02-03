@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { websocketService } from '../services/websocket';
 import StatCard from "../components/StatCard";
 import { useAuth } from "../contexts/AuthContext";
-import { disputesApi } from "../services/api";
+import { disputesApi, depositsApi } from "../services/api";
 import VoteProgressBar from "../components/VoteProgressBar";
 import { votesApi } from "../services/votesApi";
 import DisputeTimeline from "../components/DisputeTimeline";
@@ -131,7 +131,7 @@ const DisputesPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen pt-16" style={{ backgroundColor: "var(--bg-color)", color: "var(--text-color)" }}>
+    <div className="min-h-screen pt-20" style={{ backgroundColor: "var(--bg-color)", color: "var(--text-color)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <h1 style={{ color: "var(--text-color)" }} className="text-4xl font-bold text-gray-900 dark:text-white mb-4">

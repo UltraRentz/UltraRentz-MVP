@@ -62,7 +62,7 @@ const SwapStakeForm: React.FC<SwapStakeFormProps> = ({
   const isButtonDisabled = isSubmitting || !validateForm();
 
 
-  const { open, setOpen, HelpFAQ } = useHelpFAQModal();
+  const { setOpen, HelpFAQ } = useHelpFAQModal();
   return (
     <div className="form-group">
       <HelpFAQ />

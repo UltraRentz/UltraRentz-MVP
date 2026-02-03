@@ -88,7 +88,7 @@ const Yield: React.FC = () => {
     setIsSupplying(true);
     try {
       // For demo, supply 1 URZ (replace with user input)
-      const tx = await supplyToAave(provider as any, signer, ethers.utils.parseUnits('1', 18));
+      const tx = await supplyToAave(signer, ethers.utils.parseUnits('1', 18));
       await tx.wait();
       setIsSupplying(false);
       // Refresh yield

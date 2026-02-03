@@ -3,7 +3,7 @@ import React, {
   useContext,
   useEffect,
   useState,
-  ReactNode,
+  type ReactNode,
 } from "react";
 import { authService } from "../services/authService";
 import type { AuthState, User } from "../services/authService";

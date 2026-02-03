@@ -30,10 +30,10 @@ const tourSteps = [
   }
 ];
 
-let tour: Shepherd.Tour;
+let tour: any;
 
 const NewUserTour: React.FC = () => {
-  const tourRef = useRef<Shepherd.Tour | null>(null);
+  const tourRef = useRef<any>(null);
 
   useEffect(() => {
     tour = new Shepherd.Tour({

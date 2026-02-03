@@ -21,7 +21,7 @@ export const UKDatePicker: React.FC<UKDatePickerProps> = ({ value, onChange, lab
       <label className="block font-semibold mb-1 flex items-center gap-1">{label}</label>
       <DatePicker
         selected={selectedDate}
-        onChange={date => {
+        onChange={(date: Date | null) => {
           if (date) {
             onChange(format(date as Date, 'yyyy-MM-dd'));
           } else {

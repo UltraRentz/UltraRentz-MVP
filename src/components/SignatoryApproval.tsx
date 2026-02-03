@@ -20,7 +20,7 @@ const SignatoryApproval: React.FC<SignatoryApprovalProps> = ({ escrowId, email, 
       // For demo: create a Wallet for this signatory (in production, use secure key management)
       const privateKey = window.localStorage.getItem(`signatory_key_${email}`);
       if (!privateKey) return setStatus("❌ No key found for this signatory.");
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
       const owner = new ethers.Wallet(privateKey, provider);
       // Prepare UserOperation for contract's approve function
       const contract = new ethers.Contract(contractAddress, abi, owner);

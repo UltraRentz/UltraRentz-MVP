@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from 'react';
-import { ethers } from 'ethers';
+import React, { useState } from 'react';
 // import { create4337Account } from '../utils/accountAbstraction';
 // import { sendDepositNotification } from '../utils/emailNotification';
 // import HelpFAQModal from "./HelpFAQModal";
@@ -27,10 +26,6 @@ interface DepositFormProps {
   setLandlordInput: (val: string) => void;
   paymentStatus: string | null;
   setPaymentStatus: (val: string | null) => void;
-  paymentTxHash: string | null;
-  setPaymentTxHash: (val: string | null) => void;
-  connectEthereumWallet: () => void;
-  polkadotAccount: string | null;
 }
 
 
@@ -39,28 +34,10 @@ const DepositForm: React.FC<DepositFormProps> = ({
   setDepositAmount,
   tenancyStartDate,
   setTenancyStartDate,
-  tenancyDurationMonths,
-  setTenancyDurationMonths,
   tenancyEnd,
   setTenancyEnd,
-  paymentMode,
-  setPaymentMode,
-  fiatConfirmed,
-  ethereumProvider,
-  ethereumSigner,
-  ethereumAccount,
-  setEthereumProvider,
-  setEthereumSigner,
-  setEthereumAccount,
-  landlordInput,
-  setLandlordInput,
-  paymentStatus,
-  setPaymentStatus,
-  paymentTxHash,
-  setPaymentTxHash,
-  connectEthereumWallet,
-  polkadotAccount
 }) => {
+
   const [error, setError] = useState<string | null>(null);
 
   const [currencyType, setCurrencyType] = useState<'card' | 'bank' | 'urz' | 'token'>('card');
@@ -96,18 +73,7 @@ const DepositForm: React.FC<DepositFormProps> = ({
     const [y, m, d] = iso.split('-');
     return `${d}/${m}/${y}`;
   };
-  const fromBritishDate = (brit: string) => {
-    const [d, m, y] = brit.split('/');
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  };
 
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Accepts DD/MM/YYYY, converts to ISO
-    setTenancyStartDate(fromBritishDate(e.target.value));
-  };
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTenancyEnd(fromBritishDate(e.target.value));
-  };
 
   return (
     <form>

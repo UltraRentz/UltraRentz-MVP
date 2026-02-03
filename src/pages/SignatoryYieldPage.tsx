@@ -1,18 +1,6 @@
-        {/* What is URZ Token? */}
-        <div className="mb-6">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 rounded p-4 max-w-2xl mx-auto">
-            <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-200 mb-1">What is the URZ Token?</h3>
-            <p className="text-gray-700 dark:text-gray-200">
-              <b>URZ is the UltraRentz rewards token.</b> You earn URZ automatically for every rent deposit you hold or manage. URZ can be grown for more rewards, or instantly exchanged for pounds, dollars, or your favorite crypto—just like reward points, but more flexible and valuable.
-            </p>
-          </div>
-        </div>
 import React, { useState, useEffect } from "react";
+
 import { fetchTokenPrice } from '../utils/fetchTokenPrice';
-// Default static rates (used as fallback)
-const STATIC_URZ_GBP = 0.8;
-const STATIC_URZ_USD = 1.0;
-const STATIC_GBP_USD = 1.25;
 // Popular fiat currencies
 const FIAT_OPTIONS = [
   { label: 'GBP (£)', value: 'gbp', symbol: '£' },
@@ -62,8 +50,8 @@ const YieldPage: React.FC = () => {
   };
   const [currencyType, setCurrencyType] = useState<'fiat' | 'token'>('fiat');
   const [currency, setCurrency] = useState(getDefaultFiat());
-  const [urzGbp, setUrzGbp] = useState<number>(STATIC_URZ_GBP);
-  const [urzUsd, setUrzUsd] = useState<number>(STATIC_URZ_USD);
+  const [urzGbp, setUrzGbp] = useState<number>(0.8); // Default fallback
+
     // Fetch live URZ price (GBP, USD, EUR, etc.) on mount and when currency changes
     useEffect(() => {
       async function fetchPrices() {
@@ -113,7 +101,8 @@ const YieldPage: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCreatingDeposit, setIsCreatingDeposit] = useState(false);
 
@@ -127,7 +116,6 @@ const YieldPage: React.FC = () => {
 
       try {
         setIsLoading(true);
-        setError(null);
 
         const [summaryResponse, chartResponse, historyResponse] =
           await Promise.all([
@@ -141,7 +129,6 @@ const YieldPage: React.FC = () => {
         setYieldHistory(historyResponse.data);
       } catch (error: any) {
         console.error("Error fetching yield data:", error);
-        setError("Failed to load yield data");
       } finally {
         setIsLoading(false);
       }
@@ -271,7 +258,7 @@ const YieldPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen pt-16"
+      className="min-h-screen pt-20"
       style={{ backgroundColor: "var(--bg-color)", color: "var(--text-color)" }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

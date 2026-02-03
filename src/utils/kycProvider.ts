@@ -1,22 +1,12 @@
 // utils/kycProvider.ts
-// Simulated KYC provider integration for MVP
-
 export interface KYCStatus {
-  [email: string]: 'pending' | 'verified' | 'failed';
+  verified: boolean;
 }
 
-// Simulate starting a KYC check (in real app, call provider API)
-export async function startKYC(email: string): Promise<'pending'> {
-  // In production, trigger KYC provider (e.g., Onfido, Persona, Stripe Identity)
-  // Here, just simulate a delay
-  return new Promise((resolve) => setTimeout(() => resolve('pending'), 1000));
+export async function startKYC(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 1000));
 }
 
-// Simulate KYC verification result (in real app, provider would callback)
-export async function simulateKYCResult(email: string): Promise<'verified' | 'failed'> {
-  // Simulate random pass/fail for demo
-  return new Promise((resolve) => setTimeout(() => {
-    const result = Math.random() > 0.1 ? 'verified' : 'failed';
-    resolve(result);
-  }, 3000));
+export async function checkKYCStatus(): Promise<boolean> {
+  return new Promise((resolve) => setTimeout(() => resolve(true), 1000));
 }

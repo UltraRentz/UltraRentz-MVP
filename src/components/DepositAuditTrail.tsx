@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { auditTrailApi } from "../services/auditTrailApi";
 
 interface AuditEvent {
   event: string;
@@ -19,13 +20,13 @@ const DepositAuditTrail: React.FC<Props> = ({ depositId }) => {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/audit-trail/${depositId}`)
-      .then((res) => res.json())
+    auditTrailApi
+      .getByDepositId(depositId.toString())
       .then((data) => {
         setHistory(data.history || []);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch(() => {
         setError("Failed to load audit trail");
         setLoading(false);
       });

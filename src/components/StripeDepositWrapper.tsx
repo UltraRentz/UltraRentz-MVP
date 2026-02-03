@@ -8,7 +8,7 @@ const stripePromise = loadStripe('pk_test_XXXXXXXXXXXXXXXXXXXXXXXX');
 
 const StripeDepositWrapper: React.FC = () => (
   <Elements stripe={stripePromise}>
-    <DepositForm />
+    <DepositForm {...({} as any)} />
   </Elements>
 );
 

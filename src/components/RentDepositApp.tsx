@@ -85,48 +85,6 @@ const RentDepositApp: React.FC = () => {
     }
   }, [state.tenancyStartDate, state.tenancyDurationMonths, state.tenancyEnd, updateState]);
 
-  const connectEthereumWallet = useCallback(async () => {
-    updateState({ paymentStatus: "Connecting Ethereum wallet..." });
-    try {
-      if (window.ethereum) {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const signer = await provider.getSigner();
-        const accounts = await window.ethereum.request({ method: "eth_accounts" });
-        updateState({
-          ethereumProvider: provider,
-          ethereumSigner: signer,
-          ethereumAccount: accounts[0],
-          paymentStatus: `✅ Ethereum Wallet connected: ${accounts[0]}`,
-        });
-        window.ethereum.on("accountsChanged", (newAccounts: string[]) => {
-          if (newAccounts.length > 0) {
-            updateState({
-              ethereumAccount: newAccounts[0],
-              paymentStatus: `✅ Wallet account changed to: ${newAccounts[0]}`,
-            });
-          } else {
-            updateState({
-              ethereumAccount: null,
-              ethereumSigner: null,
-              ethereumProvider: null,
-              paymentStatus: "Wallet disconnected.",
-            });
-          }
-        });
-        window.ethereum.on("chainChanged", (chainId: string) => {
-          updateState({
-            paymentStatus: `Chain changed to: ${parseInt(chainId, 16)}. Please ensure it's Moonbase Alpha.`,
-          });
-        });
-      } else {
-        alert("MetaMask or a compatible Ethereum wallet is not detected. Please install one.");
-        updateState({ paymentStatus: "❌ Wallet connection failed: No Ethereum wallet detected." });
-      }
-    } catch (error: any) {
-      updateState({ paymentStatus: `❌ Error connecting Ethereum wallet: ${error.message || "Unknown error"}` });
-    }
-  }, [updateState]);
 
   const setRenterSignatories = useCallback(
     (sigs: string[]) => updateState({ renterSignatories: sigs }),
@@ -184,10 +142,6 @@ const RentDepositApp: React.FC = () => {
           setLandlordInput={(val: string) => updateState({ landlordInput: val })}
           paymentStatus={state.paymentStatus}
           setPaymentStatus={(val: string | null) => updateState({ paymentStatus: val })}
-          paymentTxHash={state.paymentTxHash}
-          setPaymentTxHash={(val: string | null) => updateState({ paymentTxHash: val })}
-          connectEthereumWallet={connectEthereumWallet}
-          polkadotAccount={null}
         />
         <div className="text-center">
           <h1 className="text-2xl font-semibold" style={{ color: "var(--text-color)" }}>

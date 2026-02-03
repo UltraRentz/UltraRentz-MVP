@@ -10,7 +10,7 @@ interface YieldInfoProps {
   setYieldStatus: (status: string) => void;
   onClaimYield: () => void;
   isClaiming?: boolean;
-  provider?: ethers.Provider;
+  provider?: ethers.providers.Provider;
   signer?: ethers.Signer;
   account?: string;
 }
@@ -51,7 +51,7 @@ export default function YieldInfo({
     setIsWithdrawing(true);
     try {
       // Withdraw all yield (for demo, withdraw all)
-      const tx = await withdrawFromAave(provider, signer, ethers.parseUnits(currentYield, 18));
+      const tx = await withdrawFromAave(signer, ethers.utils.parseUnits(currentYield, 18));
       await tx.wait();
       setIsWithdrawing(false);
       _setYieldStatus('✅ Yield claimed!');

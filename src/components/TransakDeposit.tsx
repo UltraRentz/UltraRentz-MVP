@@ -1,11 +1,10 @@
-import React from 'react';
-
 const TRANSAK_API_KEY = '55dfacd5-809a-4fbf-b5ff-f944db35a2b8';
 const ESCROW_WALLET_ADDRESS = '0x3B8e4cD1Ce9369C146a9EDb96948562662C7820E';
 const STABLECOIN = 'USDC'; // You can change this to USDT or another supported stablecoin
 const NETWORK = 'polygon'; // Or 'ethereum', 'arbitrum', etc. as needed
 
-export default function TransakDeposit({ amountGBP }) {
+export default function TransakDeposit({ amountGBP }: { amountGBP: string | number }) {
+
   const openTransak = () => {
     const transakUrl = `https://global.transak.com?apiKey=${TRANSAK_API_KEY}` +
       `&environment=sandbox` +

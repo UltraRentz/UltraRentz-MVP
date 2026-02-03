@@ -1,6 +1,5 @@
 // src/components/RentDeposit.tsx
-
-import React, { useCallback } from "react"; // Import useCallback
+import React, { useCallback } from "react";
 
 // Define the props interface for clarity
 interface RentDepositProps {
@@ -9,7 +8,6 @@ interface RentDepositProps {
   tenancyEnd: string;
   setTenancyEnd: (value: string) => void;
   // This prop will be the actual function that triggers the payment logic
-  // It's likely handlePayToken or handlePayFiat from DepositForm's parent
   onDepositSubmit: () => void;
   // Prop to indicate if form is currently submitting (e.g., waiting for blockchain TX)
   isSubmitting?: boolean;
@@ -17,19 +15,20 @@ interface RentDepositProps {
 
 // RentDeposit is now a presentational component that receives data and handlers via props
 const RentDeposit: React.FC<RentDepositProps> = ({
-    // --- Test Mode Banner ---
-    const TestModeBanner = () => (
-      <div className="bg-yellow-200 text-yellow-900 font-semibold text-center py-2 px-4 rounded mb-4 border border-yellow-400 shadow">
-        ⚠️ Test Mode: No real funds are processed. Both fiat and token payments are for demonstration only.
-      </div>
-    );
   depositAmount,
   setDepositAmount,
   tenancyEnd,
   setTenancyEnd,
   onDepositSubmit,
-  isSubmitting = false, // Default to false
+  isSubmitting = false,
 }) => {
+  // --- Test Mode Banner ---
+  const TestModeBanner = () => (
+    <div className="bg-yellow-200 text-yellow-900 font-semibold text-center py-2 px-4 rounded mb-4 border border-yellow-400 shadow">
+      ⚠️ Test Mode: No real funds are processed. Both fiat and token payments are for demonstration only.
+    </div>
+  );
+
   // Use useCallback to memoize the handleSubmit function
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -47,11 +46,10 @@ const RentDeposit: React.FC<RentDepositProps> = ({
       // Call the parent's submission handler
       onDepositSubmit();
     },
-    [depositAmount, tenancyEnd, onDepositSubmit] // Dependencies for useCallback
+    [depositAmount, tenancyEnd, onDepositSubmit]
   );
 
   return (
-    // The form structure and classes remain identical as per your request
     <>
       <TestModeBanner />
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -59,38 +57,34 @@ const RentDeposit: React.FC<RentDepositProps> = ({
         <input
           type="number"
           placeholder="Deposit Amount"
-          value={depositAmount} // Uses prop value
+          value={depositAmount}
           onChange={(e) => {
             const value = e.target.value;
-            // Improved: Check for empty string first, then for valid non-negative number
             if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-              setDepositAmount(value); // Calls prop setter
+              setDepositAmount(value);
             }
           }}
+          className="w-full p-2 border rounded"
+          required
+          disabled={isSubmitting}
         />
-        {/* ...existing code... */}
+        <input
+          type="date"
+          value={tenancyEnd}
+          onChange={(e) => setTenancyEnd(e.target.value)}
+          className="w-full p-2 border rounded"
+          required
+          disabled={isSubmitting}
+        />
+        <button
+          type="submit"
+          className="px-4 py-2 bg-indigo-600 text-white rounded w-full"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Submitting..." : "Submit Deposit"}
+        </button>
       </form>
     </>
-        className="w-full p-2 border rounded"
-        required
-        disabled={isSubmitting} // Disable input during submission
-      />
-      <input
-        type="date"
-        value={tenancyEnd} // Uses prop value
-        onChange={(e) => setTenancyEnd(e.target.value)} // Calls prop setter
-        className="w-full p-2 border rounded"
-        required
-        disabled={isSubmitting} // Disable input during submission
-      />
-      <button
-        type="submit"
-        className="px-4 py-2 bg-indigo-600 text-white rounded"
-        disabled={isSubmitting} // Disable button during submission
-      >
-        {isSubmitting ? "Submitting..." : "Submit Deposit"} {/* Optional: change text during submission */}
-      </button>
-    </form>
   );
 };
 

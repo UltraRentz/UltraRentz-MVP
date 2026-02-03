@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useHelpFAQModal } from "./useHelpFAQModal";
 
 interface ReleaseStepProps {
@@ -25,7 +25,7 @@ const ReleaseStep: React.FC<ReleaseStepProps> = (props) => {
           ?
         </button>
       </h2>
-      <props.HelpFAQ />
+      <HelpFAQ />
       <div className="mb-2 text-gray-700 dark:text-gray-200">
         <b>Escrow ID:</b> {props.escrowId}
       </div>

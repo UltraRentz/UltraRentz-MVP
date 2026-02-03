@@ -1,6 +1,7 @@
 import { useState } from "react";
 import StatusStepper from "./StatusStepper";
 import type { EscrowStep } from "./StatusStepper";
+import DisputeVoting from "./DisputeVoting";
 
 interface EscrowDetailProps {
   escrowId: string;
@@ -16,6 +17,12 @@ export default function EscrowDetail({ escrowId, address, onBack }: EscrowDetail
   const statusBadge = isDisputed 
     ? { text: "Disputed", classes: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800" }
     : { text: "Active", classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800" };
+
+  // Dummy votes for demo
+  const mockVotes = [
+    { address: '0x123', choice: 'refund_tenant', username: 'Tenant' },
+    { address: '0x456', choice: 'pay_landlord', username: 'Landlord' }
+  ];
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -46,8 +53,17 @@ export default function EscrowDetail({ escrowId, address, onBack }: EscrowDetail
       {/* Visual Lifecycle Tracker */}
       <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
         <h3 className="text-lg font-bold mb-8 text-gray-700 dark:text-gray-200">Tenancy Progress</h3>
-        <StatusStepper currentStep={currentStep} />
+        <StatusStepper currentStep={currentStep} status={isDisputed ? "Disputed" : "Active"} />
       </div>
+
+      {isDisputed && (
+        <DisputeVoting 
+          disputeId="DSP-9821" 
+          userRole="tenant" // hardcoded for demo
+          votes={mockVotes}
+          totalSignatories={5}
+        />
+      )}
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -88,7 +104,7 @@ export default function EscrowDetail({ escrowId, address, onBack }: EscrowDetail
               className="w-full py-2.5 rounded-lg border-2 border-red-500 text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition"
               onClick={() => setIsDisputed(!isDisputed)}
             >
-              {isDisputed ? "Resolve Dispute" : "Raise a Dispute"}
+              {isDisputed ? "Close Dispute Resolution" : "Raise a Dispute"}
             </button>
             <button className="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition opacity-50 cursor-not-allowed" disabled>
               Request Early Release

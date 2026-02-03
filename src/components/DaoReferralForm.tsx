@@ -91,7 +91,7 @@ const DaoReferralForm: React.FC<DaoReferralFormProps> = ({
   const isFormValid = daoReferral.trim() !== "" && daoDecision.trim() !== "" && appealFeeError === null;
 
 
-  const { open, setOpen, HelpFAQ } = useHelpFAQModal();
+  const { setOpen, HelpFAQ } = useHelpFAQModal();
   return (
     <div className="form-group">
       <HelpFAQ />

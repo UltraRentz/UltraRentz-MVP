@@ -19,7 +19,7 @@ export default function StakeDepositForm({
     onStakeDeposit();
   }, [onStakeDeposit]);
 
-  const { open, setOpen, HelpFAQ } = useHelpFAQModal();
+  const { setOpen, HelpFAQ } = useHelpFAQModal();
   return (
     <div className="form-section">
       <HelpFAQ />

@@ -40,7 +40,7 @@ const VoteProgressBar: React.FC<VoteProgressBarProps> = ({ votes, totalSignatori
         />
       </div>
       <div className="flex mt-2 space-x-2">
-        {votes.map((v, i) => (
+        {votes.map((v) => (
           <div key={v.address} className="flex flex-col items-center">
             {v.avatarUrl ? (
               <img src={v.avatarUrl} alt={v.username || v.address} className="w-6 h-6 rounded-full border" />

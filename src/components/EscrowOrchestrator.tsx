@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import EscrowDashboard from "./EscrowDashboard";
 import RentDepositApp from "./RentDepositApp";
 import EscrowDetail from "./EscrowDetail";
@@ -12,7 +12,7 @@ export default function EscrowOrchestrator() {
 
   if (!isSubmitted) {
     return (
-      <div className="max-w-md mx-auto mt-16 p-8 bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div className="max-w-md mx-auto mt-20 p-8 bg-white dark:bg-gray-800 rounded-lg shadow">
         <h2 className="text-2xl font-bold mb-4">Sign In</h2>
         <input
           type="email"
