@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
+import { supplyToAave, getAaveYield } from '../utils/aaveYield';
 import Skeleton from './Skeleton';
-
 
 // Supported chains and their RPC endpoints
 const CHAINS = [
@@ -16,6 +17,9 @@ const Yield: React.FC = () => {
   const [selectedChain, setSelectedChain] = useState(CHAINS[0]);
   const [account, setAccount] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
+  const [isSupplying, setIsSupplying] = useState(false);
   
   // Yield Stats State
   const [stats, setStats] = useState({
@@ -28,27 +32,77 @@ const Yield: React.FC = () => {
   // Connect wallet (MetaMask)
   const connectWallet = async () => {
     if (window.ethereum) {
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      setAccount(accounts[0]);
+      try {
+        const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const web3Signer = web3Provider.getSigner();
+        setProvider(web3Provider);
+        setSigner(web3Signer);
+        setAccount(accounts[0]);
+      } catch (err) {
+        console.error("Connection failed", err);
+      }
     } else {
       alert('Please install MetaMask!');
     }
   };
 
-  // Simulate data fetching
+  // Simulate data fetching (Demo fallback)
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
-      setStats({
-        principal: "1,250.00",
+      setStats(prev => ({
+        ...prev,
+        principal: prev.principal === "0.00" ? "1,250.00" : prev.principal,
         apy: (Math.random() * (5.5 - 3.1) + 3.1).toFixed(2),
-        accruedYield: "12.45",
+        accruedYield: prev.accruedYield === "0.00" ? "12.45" : prev.accruedYield,
         yieldToken: "USDC"
-      });
+      }));
       setLoading(false);
     }, 1500);
     return () => clearTimeout(timer);
   }, [selectedChain]);
+
+  // Fetch real yield stats from Aave if connected
+  useEffect(() => {
+    async function fetchYield() {
+      if (provider && account) {
+        try {
+          const yieldRaw = await getAaveYield(provider as any, account);
+          setStats(prev => ({
+            ...prev,
+            principal: yieldRaw.toString(),
+            accruedYield: yieldRaw.toString(), // Simplified for demo
+          }));
+        } catch (err) {
+          console.error("Fetch yield failed", err);
+        }
+      }
+    }
+    fetchYield();
+  }, [provider, account]);
+
+  // Handle supply to Aave
+  const handleStartEarning = async () => {
+    if (!signer || !provider) return;
+    setIsSupplying(true);
+    try {
+      // For demo, supply 1 URZ (replace with user input)
+      const tx = await supplyToAave(provider as any, signer, ethers.utils.parseUnits('1', 18));
+      await tx.wait();
+      setIsSupplying(false);
+      // Refresh yield
+      const yieldRaw = await getAaveYield(provider as any, account!);
+      setStats(prev => ({
+        ...prev,
+        principal: yieldRaw.toString(),
+        accruedYield: yieldRaw.toString(),
+      }));
+    } catch (err) {
+      setIsSupplying(false);
+      alert('Supply failed: ' + (err as Error).message);
+    }
+  };
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -111,8 +165,12 @@ const Yield: React.FC = () => {
           </div>
         </div>
 
-        <button className="w-full mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center gap-2" disabled={loading}>
-          {loading ? "Syncing..." : "Claim Accrued Yield"}
+        <button 
+          onClick={handleStartEarning}
+          className="w-full mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center gap-2" 
+          disabled={loading || isSupplying}
+        >
+          {loading ? "Syncing..." : isSupplying ? "Processing..." : "Claim Accrued Yield"}
         </button>
       </div>
 

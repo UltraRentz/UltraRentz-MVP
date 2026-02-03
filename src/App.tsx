@@ -1,31 +1,52 @@
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import EscrowOrchestrator from "./components/EscrowOrchestrator";
+// ThemeProvider and ThemeContext removed
+import { AuthProvider } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
-import Yield from "./components/Yield";
+import MottoFooter from "./components/MottoFooter";
+import EscrowOrchestrator from "./components/EscrowOrchestrator";
+// import Yield from "./components/Yield"; // unused
+import TopHeader from "./layouts/TopHeader";
+import MobileMenu from "./components/MobileMenu";
+import HomePage from "./pages/HomePage";
+import RentDepositsPage from "./pages/RentDepositsPage";
+import YieldPage from "./pages/SignatoryYieldPage";
+import DisputesPage from "./pages/DisputesPage";
+import DashboardPage from "./pages/DashboardPage";
 import "./styles.css";
 
-export default function App() {
-  const [theme, setTheme] = useState("dark");
+const AppContent: React.FC = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
+  // Always use dark theme classes via Tailwind or CSS
   return (
     <Router>
       <DashboardLayout>
-        <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="theme-toggle mb-4"
-        >
-          {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
-        </button>
+        <TopHeader onMobileMenuToggle={toggleMobileMenu} />
+        <MobileMenu isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+        {/* Theme toggle removed, always dark theme */}
         <Routes>
-          <Route path="/" element={<EscrowOrchestrator />} />
-          <Route path="/yield" element={<Yield />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/rent-deposits" element={<RentDepositsPage />} />
+          <Route path="/yield" element={<YieldPage />} />
+          <Route path="/disputes" element={<DisputesPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/escrow" element={<EscrowOrchestrator />} />
         </Routes>
+        <MottoFooter />
       </DashboardLayout>
     </Router>
+  );
+};
+
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

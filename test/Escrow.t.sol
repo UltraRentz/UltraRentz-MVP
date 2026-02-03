@@ -1,45 +1,19 @@
-// Helper contract to force Ether into escrow
-contract ForceEther {
-    constructor() payable {}
-    function go(address payable to) public {
-        selfdestruct(to);
-    }
-}
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test} from "forge-std/Test.sol";
-import {UltraRentzEscrow} from "../src/contracts/UltraRentzEscrow.sol";
-import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
-import {ERC20} from "solmate/tokens/ERC20.sol";
-import {console} from "forge-std/console.sol";
+import "forge-std/Test.sol";
+import "forge-std/console.sol";
+import "../contracts/Escrow.sol";
+import "../src/contracts/UltraRentzEscrow.sol";
 
-
-// --- Deployable and Mintable ERC20 Mock ---
-contract TestERC20 is ERC20 {
-        // Public burn function for resetting balances in tests
-        function burn(address from, uint256 amount) public {
-            _burn(from, amount);
-        }
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint8 decimals
-    ) ERC20(name, symbol, decimals) {}
-
-    // Public mint function for setting up test balances
-    function mint(address to, uint256 amount) public {
-        _mint(to, amount);
-    }
-}
-
-
-// --- END Mock ---
+// Add any other necessary imports here
 
 
 // =========================================================================
 // 5. SECURITY: REENTRANCY ATTACK SIMULATION
 // =========================================================================
+
 contract Malicious {
     UltraRentzEscrow public escrow;
     uint256 public targetEscrowId;
@@ -48,7 +22,6 @@ contract Malicious {
         escrow = _escrow;
         targetEscrowId = _escrowId;
     }
-    // Try to recursively call approveRelease
     fallback() external payable {
         if (!attackAttempted) {
             attackAttempted = true;
@@ -67,7 +40,15 @@ contract Malicious {
 
 
 contract EscrowTest is Test {
-        receive() external payable {}
+    UltraRentzEscrow public escrow;
+    address public daoAdmin = address(0x1234); // Replace with actual DAO admin address as needed
+    address public tenant = address(0x1111);
+    address public landlord = address(0x2222);
+    address[] public signatories;
+    uint256 public DURATION = 30 days;
+
+    receive() external payable {}
+
     // =============================
     // COVERAGE BOOST TESTS
     // =============================
@@ -75,6 +56,7 @@ contract EscrowTest is Test {
         vm.expectRevert(bytes("UltraRentzEscrow does not accept Ether"));
         address(escrow).call{value: 1 ether}("");
     }
+    // ...existing code...
 
 
     function testWithdrawEtherWithBalance() public {
