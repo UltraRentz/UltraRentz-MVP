@@ -11,6 +11,7 @@ import EvidenceGallery from "../components/EvidenceGallery";
 import DisputeInsights from "../components/DisputeInsights";
 import DisputeChat from "../components/DisputeChat";
 import { evidenceApi } from "../services/evidenceApi";
+import DisputeVoting from "../components/DisputeVoting";
 
 interface DisputeStats {
   activeDisputes: number;
@@ -51,6 +52,19 @@ const DisputesPage: React.FC = () => {
   const [evidence, setEvidence] = useState<any[]>([]);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceUploading, setEvidenceUploading] = useState(false);
+  const [expandedDisputeId, setExpandedDisputeId] = useState<string | null>(null);
+
+  // Fetch user deposits when modal opens
+  useEffect(() => {
+    if (showModal && authState?.user?.walletAddress) {
+      setDepositsLoading(true);
+      depositsApi.getByUser(authState.user.walletAddress)
+        .then(res => setUserDeposits(res.data.data || []))
+        .catch(() => setUserDeposits([]))
+        .finally(() => setDepositsLoading(false));
+    }
+  }, [showModal, authState?.user?.walletAddress]);
+
   // Show timeline modal for a dispute
   const openTimeline = async (depositId: string, disputeId?: string) => {
     setTimelineModal({ open: true, events: [], loading: true, error: null, disputeId });
@@ -272,17 +286,8 @@ const DisputesPage: React.FC = () => {
                         const expectedResolution = new Date(created.getTime() + 3 * 24 * 60 * 60 * 1000);
                         const votes = votesByDispute[dispute.deposit_id] || [];
                         // Placeholder: totalSignatories should come from backend or contract
-                        const totalSignatories = 5;
-                        // Fetch user deposits when modal opens
-                        useEffect(() => {
-                          if (showModal && authState?.user?.walletAddress) {
-                            setDepositsLoading(true);
-                            depositsApi.getByUser(authState.user.walletAddress)
-                              .then(res => setUserDeposits(res.data.data || []))
-                              .catch(() => setUserDeposits([]))
-                              .finally(() => setDepositsLoading(false));
-                          }
-                        }, [showModal, authState?.user?.walletAddress]);
+                        const totalSignatories = 6;
+                        const isExpanded = expandedDisputeId === dispute.id;
 
                         return (
                           <React.Fragment key={dispute.id}>
@@ -308,10 +313,18 @@ const DisputesPage: React.FC = () => {
                               </td>
                               <td className="px-3 py-2">{dispute.feedback || '-'}</td>
                               <td className="px-3 py-2 text-xs">{new Date(dispute.created_at).toLocaleDateString()}</td>
-                              <td className="px-3 py-2">
+                              <td className="px-3 py-2 space-x-2">
                                 <button className="text-blue-600 underline" onClick={() => openTimeline(dispute.deposit_id, dispute.id)}>
-                                  View Timeline
+                                  Timeline
                                 </button>
+                                {dispute.status === 'active' && (
+                                  <button
+                                    className="text-indigo-600 underline"
+                                    onClick={() => setExpandedDisputeId(isExpanded ? null : dispute.id)}
+                                  >
+                                    {isExpanded ? 'Hide Voting' : 'Vote'}
+                                  </button>
+                                )}
                               </td>
                                         {/* Dispute Timeline Modal */}
                                         {timelineModal.open && (
@@ -366,11 +379,39 @@ const DisputesPage: React.FC = () => {
                                           </div>
                                         )}
                             </tr>
+                            {/* Vote Progress Row */}
                             <tr>
-                              <td colSpan={8}>
+                              <td colSpan={9} className="px-3 py-2">
                                 <VoteProgressBar votes={votes} totalSignatories={totalSignatories} />
                               </td>
                             </tr>
+                            {/* Expanded Voting UI for Active Disputes */}
+                            {isExpanded && dispute.status === 'active' && (
+                              <tr>
+                                <td colSpan={9} className="px-0 py-0">
+                                  <DisputeVoting
+                                    depositId={dispute.deposit_id}
+                                    userAddress={authState?.user?.walletAddress || null}
+                                    userRole="signatory"
+                                    totalSignatories={totalSignatories}
+                                    onVoteSuccess={(_voteCount, resolutionReached, winningChoice) => {
+                                      // Update local votes state
+                                      setVotesByDispute(prev => ({
+                                        ...prev,
+                                        [dispute.deposit_id]: [
+                                          ...(prev[dispute.deposit_id] || []),
+                                          { address: authState?.user?.walletAddress || '', choice: winningChoice || '' }
+                                        ]
+                                      }));
+                                      // If resolution reached, refresh the page to show updated status
+                                      if (resolutionReached) {
+                                        setTimeout(() => window.location.reload(), 2000);
+                                      }
+                                    }}
+                                  />
+                                </td>
+                              </tr>
+                            )}
                           </React.Fragment>
                         );
                       })}

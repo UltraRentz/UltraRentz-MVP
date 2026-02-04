@@ -27,10 +27,131 @@ import YieldChart from "../components/YieldChart";
 import YieldForm from "../components/YieldForm";
 import { useAuth } from "../contexts/AuthContext";
 import { yieldsApi, yieldDepositsApi } from "../services/api";
-import { authService } from "../services/authService";
+
+// Skeleton Loading Components
+const SkeletonPulse: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className = "", style }) => (
+  <div className={`animate-pulse bg-gray-300 dark:bg-gray-600 rounded ${className}`} style={style} />
+);
+
+const StatCardSkeleton: React.FC = () => (
+  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+    <div className="flex items-center justify-between mb-4">
+      <SkeletonPulse className="h-4 w-24" />
+      <SkeletonPulse className="h-8 w-8 rounded-full" />
+    </div>
+    <SkeletonPulse className="h-8 w-32 mb-2" />
+    <SkeletonPulse className="h-3 w-20" />
+  </div>
+);
+
+const YieldCardSkeleton: React.FC = () => (
+  <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 shadow-lg w-full max-w-md animate-pulse">
+    <SkeletonPulse className="h-6 w-32 mb-4" />
+    <SkeletonPulse className="h-10 w-40 mb-2" />
+    <SkeletonPulse className="h-4 w-48 mb-4" />
+    <SkeletonPulse className="h-12 w-32 rounded-lg" />
+  </div>
+);
+
+const ChartSkeleton: React.FC = () => (
+  <div className="h-80 flex flex-col items-center justify-center">
+    <div className="w-full h-full flex items-end justify-around px-4 gap-2">
+      {[...Array(7)].map((_, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center gap-2">
+          <SkeletonPulse
+            className="w-full rounded-t"
+            style={{ height: `${Math.random() * 150 + 50}px` }}
+          />
+          <SkeletonPulse className="h-3 w-8" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const TableRowSkeleton: React.FC = () => (
+  <tr className="border-b border-gray-200 dark:border-gray-700">
+    <td className="py-3 px-4"><SkeletonPulse className="h-4 w-20" /></td>
+    <td className="py-3 px-4"><SkeletonPulse className="h-4 w-16" /></td>
+    <td className="py-3 px-4"><SkeletonPulse className="h-4 w-24" /></td>
+    <td className="py-3 px-4"><SkeletonPulse className="h-4 w-12" /></td>
+    <td className="py-3 px-4"><SkeletonPulse className="h-6 w-16 rounded-full" /></td>
+  </tr>
+);
+
+// Empty State Components
+const EmptyStateNoDeposits: React.FC<{ onCreateDeposit: () => void }> = ({ onCreateDeposit }) => (
+  <div className="text-center py-12 px-4">
+    <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center">
+      <span className="text-5xl">🌱</span>
+    </div>
+    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+      Start Growing Your Deposit
+    </h3>
+    <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+      You don't have any active yield deposits yet. Create your first deposit to start earning rewards automatically.
+    </p>
+    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <button
+        onClick={onCreateDeposit}
+        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+      >
+        Create First Deposit
+      </button>
+    </div>
+    <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+        <div className="text-2xl mb-2">💰</div>
+        <div className="text-sm font-medium text-gray-900 dark:text-white">Earn Rewards</div>
+        <div className="text-xs text-gray-500">Up to 8% APY</div>
+      </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+        <div className="text-2xl mb-2">🔒</div>
+        <div className="text-sm font-medium text-gray-900 dark:text-white">Fully Secured</div>
+        <div className="text-xs text-gray-500">Smart contract protected</div>
+      </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+        <div className="text-2xl mb-2">⚡</div>
+        <div className="text-sm font-medium text-gray-900 dark:text-white">Instant Claims</div>
+        <div className="text-xs text-gray-500">Withdraw anytime</div>
+      </div>
+    </div>
+  </div>
+);
+
+const EmptyStateNotConnected: React.FC<{ onConnect: () => void; isConnecting: boolean }> = ({ onConnect, isConnecting }) => (
+  <div className="text-center py-12 px-4">
+    <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-full flex items-center justify-center">
+      <span className="text-5xl">🔗</span>
+    </div>
+    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+      Connect Your Wallet
+    </h3>
+    <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+      Connect your wallet to view your yield dashboard, track earnings, and manage your deposits.
+    </p>
+    <button
+      onClick={onConnect}
+      disabled={isConnecting}
+      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+    >
+      {isConnecting ? (
+        <span className="flex items-center">
+          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Connecting...
+        </span>
+      ) : (
+        "Connect Wallet"
+      )}
+    </button>
+  </div>
+);
 
 const YieldPage: React.FC = () => {
-  const { authState } = useAuth();
+  const { authState, connectWallet } = useAuth();
   const [isClaiming, setIsClaiming] = useState(false);
   // Auto-detect user locale for fiat currency (default to GBP)
   const getDefaultFiat = () => {
@@ -151,50 +272,27 @@ const YieldPage: React.FC = () => {
   };
 
   const handleConnectWallet = async () => {
-    if (isConnecting) {
-      console.log("Wallet connection already in progress");
-      return;
-    }
+    if (isConnecting) return;
 
     setIsConnecting(true);
     try {
-      console.log("Starting wallet connection...");
-
-      // Check if MetaMask is available first
-      if (!authService.isMetaMaskAvailable()) {
-        alert(
-          "MetaMask is not installed. Please install MetaMask extension to connect your wallet."
-        );
-        return;
-      }
-
-      // Try simple connection first (without signature verification)
-      await authService.connectWalletOnly();
-
-      console.log("Wallet connection successful!");
-      // The auth context will update automatically
+      await connectWallet();
     } catch (error: any) {
       console.error("Failed to connect wallet:", error);
-
-      // Provide user-friendly error messages
-      let errorMessage = "Failed to connect wallet.";
-
-      if (error.message?.includes("timeout")) {
-        errorMessage = "Wallet connection timed out. Please try again.";
-      } else if (error.message?.includes("rejected")) {
-        errorMessage = "Wallet connection was cancelled.";
-      } else if (error.message?.includes("not installed")) {
-        errorMessage =
-          "MetaMask is not installed. Please install the extension.";
-      } else if (error.message) {
-        errorMessage = `Failed to connect: ${error.message}`;
-      }
-
-      alert(errorMessage);
     } finally {
       setIsConnecting(false);
     }
   };
+
+  const scrollToForm = () => {
+    const formElement = document.getElementById('yield-form-section');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Check if user has no deposits
+  const hasNoDeposits = !isLoading && authState.isAuthenticated && yieldSummary.activeDeposits === 0;
 
   const handleYieldFormSubmit = async (formData: any) => {
     if (!authState.isAuthenticated || !authState.user?.walletAddress) {
@@ -337,64 +435,84 @@ const YieldPage: React.FC = () => {
             )}
           </div>
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 mt-6">
-            <div className="bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-xl p-6 shadow-lg w-full max-w-md">
-              <div className="text-2xl font-semibold mb-2 text-blue-700 dark:text-blue-200">Projected Yield</div>
-              <div className="text-3xl font-mono mb-1 text-green-600 dark:text-green-300" dangerouslySetInnerHTML={{__html: isLoading ? '...' : toDisplay(yieldSummary?.claimableYield)}} />
-              <div className="text-sm text-gray-500 mb-2">Based on your current deposit and APY</div>
-              <button
-                onClick={() => window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow hover:bg-blue-700 transition"
-              >
-                Start Growing
-              </button>
-            </div>
-            <div className="bg-gradient-to-br from-green-100 to-blue-100 dark:from-green-900/30 dark:to-blue-900/30 rounded-xl p-6 shadow-lg w-full max-w-md">
-              <div className="text-2xl font-semibold mb-2 text-green-700 dark:text-green-200">Actual Yield</div>
-              <div className="text-3xl font-mono mb-1 text-purple-600 dark:text-purple-300" dangerouslySetInnerHTML={{__html: isLoading ? '...' : toDisplay(yieldSummary?.totalYield)}} />
-              <div className="text-sm text-gray-500 mb-2">Earned so far on your deposit</div>
-              {authState.isAuthenticated && parseFloat(yieldSummary?.claimableYield || '0') > 0 && (
-                <button
-                  onClick={handleClaimYield}
-                  disabled={isClaiming}
-                  className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow hover:bg-purple-700 transition mt-2"
-                >
-                  {isClaiming ? 'Claiming...' : <span dangerouslySetInnerHTML={{__html: `Claim ${toDisplay(yieldSummary.claimableYield)}`}} />}
-                </button>
-              )}
-            </div>
+            {isLoading ? (
+              <>
+                <YieldCardSkeleton />
+                <YieldCardSkeleton />
+              </>
+            ) : (
+              <>
+                <div className="bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-xl p-6 shadow-lg w-full max-w-md">
+                  <div className="text-2xl font-semibold mb-2 text-blue-700 dark:text-blue-200">Projected Yield</div>
+                  <div className="text-3xl font-mono mb-1 text-green-600 dark:text-green-300" dangerouslySetInnerHTML={{__html: toDisplay(yieldSummary?.claimableYield)}} />
+                  <div className="text-sm text-gray-500 mb-2">Based on your current deposit and APY</div>
+                  <button
+                    onClick={scrollToForm}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow hover:bg-blue-700 transition"
+                  >
+                    Start Growing
+                  </button>
+                </div>
+                <div className="bg-gradient-to-br from-green-100 to-blue-100 dark:from-green-900/30 dark:to-blue-900/30 rounded-xl p-6 shadow-lg w-full max-w-md">
+                  <div className="text-2xl font-semibold mb-2 text-green-700 dark:text-green-200">Actual Yield</div>
+                  <div className="text-3xl font-mono mb-1 text-purple-600 dark:text-purple-300" dangerouslySetInnerHTML={{__html: toDisplay(yieldSummary?.totalYield)}} />
+                  <div className="text-sm text-gray-500 mb-2">Earned so far on your deposit</div>
+                  {authState.isAuthenticated && parseFloat(yieldSummary?.claimableYield || '0') > 0 && (
+                    <button
+                      onClick={handleClaimYield}
+                      disabled={isClaiming}
+                      className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold text-lg shadow hover:bg-purple-700 transition mt-2"
+                    >
+                      {isClaiming ? 'Claiming...' : <span dangerouslySetInnerHTML={{__html: `Claim ${toDisplay(yieldSummary.claimableYield)}`}} />}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         {/* Yield Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            title="Current APY"
-            value={isLoading ? "..." : `${yieldSummary?.currentAPY || "0.00"}%`}
-            subtitle="Annual Percentage Yield"
-            color="blue"
-            icon="📊"
-          />
-          <StatCard
-            title="Total Yield Earned"
-            value={<span dangerouslySetInnerHTML={{__html: isLoading ? "..." : toDisplay(yieldSummary?.totalYield)}} />}
-            subtitle="Lifetime earnings"
-            color="green"
-            icon="💰"
-          />
-          <StatCard
-            title="Claimable Rewards"
-            value={<span dangerouslySetInnerHTML={{__html: isLoading ? "..." : toDisplay(yieldSummary?.claimableYield)}} />}
-            subtitle="Ready to claim"
-            color="purple"
-            icon="🎁"
-          />
-          <StatCard
-            title="Active Deposits"
-            value={isLoading ? "..." : (yieldSummary?.activeDeposits || 0).toString()}
-            subtitle="Earning yield"
-            color="orange"
-            icon="🔒"
-          />
+          {isLoading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard
+                title="Current APY"
+                value={`${yieldSummary?.currentAPY || "0.00"}%`}
+                subtitle="Annual Percentage Yield"
+                color="blue"
+                icon="📊"
+              />
+              <StatCard
+                title="Total Yield Earned"
+                value={<span dangerouslySetInnerHTML={{__html: toDisplay(yieldSummary?.totalYield)}} />}
+                subtitle="Lifetime earnings"
+                color="green"
+                icon="💰"
+              />
+              <StatCard
+                title="Claimable Rewards"
+                value={<span dangerouslySetInnerHTML={{__html: toDisplay(yieldSummary?.claimableYield)}} />}
+                subtitle="Ready to claim"
+                color="purple"
+                icon="🎁"
+              />
+              <StatCard
+                title="Active Deposits"
+                value={(yieldSummary?.activeDeposits || 0).toString()}
+                subtitle="Earning yield"
+                color="orange"
+                icon="🔒"
+              />
+            </>
+          )}
         </div>
 
         {/* Dual-Reward System Section */}
@@ -456,7 +574,7 @@ const YieldPage: React.FC = () => {
         </div>
 
         {/* Yield Form Section */}
-        <div className="mb-8">
+        <div id="yield-form-section" className="mb-8 scroll-mt-24">
           <h2
             style={{ color: "var(--text-color)" }}
             className="text-2xl font-bold text-gray-900 dark:text-white mb-6"
@@ -498,9 +616,7 @@ const YieldPage: React.FC = () => {
               </div>
             </div>
             {isLoading ? (
-              <div className="flex items-center justify-center h-80">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              </div>
+              <ChartSkeleton />
             ) : chartDataResponse?.chartData &&
               chartDataResponse.chartData.length > 0 ? (
               <YieldChart
@@ -509,69 +625,68 @@ const YieldPage: React.FC = () => {
                 height={300}
               />
             ) : (
-              <div className="flex items-center justify-center h-80 text-gray-500">
-                {authState.isAuthenticated
-                  ? "No chart data available yet"
-                  : "Connect your wallet to view yield chart"}
+              <div className="flex flex-col items-center justify-center h-80 text-gray-500">
+                <div className="w-16 h-16 mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                  <span className="text-3xl">📈</span>
+                </div>
+                <p className="text-lg font-medium mb-2">
+                  {authState.isAuthenticated
+                    ? "No chart data available yet"
+                    : "Connect your wallet to view yield chart"}
+                </p>
+                <p className="text-sm text-gray-400">
+                  {authState.isAuthenticated
+                    ? "Start earning yield to see your growth chart"
+                    : "Your yield history will appear here"}
+                </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Claim Yield Button */}
-        <div className="mb-8 text-center">
+        {/* Claim Yield Button / Empty States */}
+        <div className="mb-8">
           {!authState.isAuthenticated ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Connect your wallet to view and claim yield rewards
-              </p>
+            <EmptyStateNotConnected onConnect={handleConnectWallet} isConnecting={isConnecting} />
+          ) : hasNoDeposits ? (
+            <EmptyStateNoDeposits onCreateDeposit={scrollToForm} />
+          ) : (
+            <div className="text-center">
               <button
-                onClick={handleConnectWallet}
-                disabled={isConnecting}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleClaimYield}
+                disabled={
+                  !yieldSummary ||
+                  parseFloat(yieldSummary.claimableYield) === 0 ||
+                  isClaiming
+                }
+                className={`px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
+                  yieldSummary &&
+                  parseFloat(yieldSummary.claimableYield) > 0 &&
+                  !isClaiming
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
+                    : "bg-gray-400 text-white cursor-not-allowed"
+                }`}
               >
-                {isConnecting ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Connecting...
-                  </div>
+                {isClaiming ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Claiming...
+                  </span>
+                ) : yieldSummary &&
+                  parseFloat(yieldSummary.claimableYield) > 0 ? (
+                  `Claim ${yieldSummary.claimableYield} URZ`
                 ) : (
-                  "Connect Wallet"
+                  "No Yield to Claim"
                 )}
               </button>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                Secure wallet integration for smart contract interaction
+              </p>
             </div>
-          ) : (
-            <button
-              onClick={handleClaimYield}
-              disabled={
-                !yieldSummary ||
-                parseFloat(yieldSummary.claimableYield) === 0 ||
-                isClaiming
-              }
-              className={`px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
-                yieldSummary &&
-                parseFloat(yieldSummary.claimableYield) > 0 &&
-                !isClaiming
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
-                  : "bg-gray-400 text-white cursor-not-allowed"
-              }`}
-            >
-              {isClaiming ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Claiming...
-                </div>
-              ) : yieldSummary &&
-                parseFloat(yieldSummary.claimableYield) > 0 ? (
-                `Claim ${yieldSummary.claimableYield} URZ`
-              ) : (
-                "No Yield to Claim"
-              )}
-            </button>
           )}
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-            MetaMask integration for secure smart contract interaction
-          </p>
         </div>
 
         {/* Yield History */}
@@ -606,16 +721,12 @@ const YieldPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={5} className="text-center py-8">
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                          <span className="ml-2 text-gray-600 dark:text-gray-400">
-                            Loading yield history...
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
+                    <>
+                      <TableRowSkeleton />
+                      <TableRowSkeleton />
+                      <TableRowSkeleton />
+                      <TableRowSkeleton />
+                    </>
                   ) : yieldHistory?.data && yieldHistory.data.length > 0 ? (
                     yieldHistory.data.map((yieldItem: any, index: number) => (
                       <tr
