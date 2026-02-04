@@ -43,7 +43,9 @@ const SignatoryForm: React.FC<SignatoryFormProps> = ({ type, signatories, setSig
       return;
     }
     if (otherGroupSignatories && otherGroupSignatories.includes(email)) {
-      setErrorMessage('This email is already used in the other group.');
+      setErrorMessage(
+        `You can't be both the Landlord and the Tenant. This email is already used in the other group.`
+      );
       return;
     }
     if (signatories.length >= maxSignatories) {

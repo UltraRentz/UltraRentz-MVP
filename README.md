@@ -18,6 +18,21 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 
 ## 🆕 Recent Feature Updates
 
+### Feb 7, 2026
+- **Signatory Experience Overhaul:**
+   - Instant feedback and robust validation for adding/removing signatory emails or wallet addresses.
+   - Clear error messages for invalid, duplicate, or excess entries (max 3 per group).
+   - Polished UI for add/remove flow, with smooth animations and user-friendly controls.
+   - "Verified" status removed for a cleaner, less confusing experience.
+- **Card Expiry Input Polished:**
+   - Card expiry field now auto-inserts and removes the slash (MM/YY) as you type or delete, for a seamless, familiar UX.
+- **Error Handling & Feedback:**
+   - All error messages are now clear, actionable, and non-technical—no crypto jargon.
+   - Success and next-step messages after every major action.
+- **MVP Polish:**
+   - All features tested and demo-ready for Y Combinator and team review.
+
+
 ### Jan 27, 2026
 - Overhauled all user-facing error messages for an "Invisible Web3" experience: users never see technical terms like Bundler, Paymaster, or Security Transaction fees. Friendly, non-crypto explanations are shown for all errors (including downtime, payment, and KYC issues).
 - Added localStorage draft saving and auto-resume for signatory emails. Users can now safely leave and return to onboarding without losing progress, reducing drop-off.
@@ -151,12 +166,18 @@ All features are integrated into the Disputes page and related modals/components
 
 ## ✍️ How to Add Signatories
 
-1. Scroll to the **Signatories Section**.  
-2. Add **3 signatory emails or wallet addresses** under both Renter and Landlord.  
-3. Click `Finalize Deposit & Signatories` when:  
-   - URZ token payment is confirmed ✅  
-   - Wallet is connected  
-   - All 6 signatories are added  
+
+**How it works:**
+- Add up to 3 signatory emails or wallet addresses for each party (Renter and Landlord).
+- Instant feedback: Invalid, duplicate, or excess entries are blocked with clear error messages.
+- Remove signatories instantly with the remove button.
+- UI is polished for clarity and ease of use—no "verified" status or confusing states.
+- All changes are saved as you go (drafts auto-resume if you leave and return).
+
+**To finalize:**
+1. Ensure URZ token payment is confirmed and wallet is connected.
+2. Add 3 signatories for each party (6 total).
+3. Click `Finalize Deposit & Signatories` to complete the process.
 
 ---
 
