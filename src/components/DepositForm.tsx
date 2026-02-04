@@ -66,6 +66,28 @@ const DepositForm: React.FC<DepositFormProps> = ({
   const [currencyType, setCurrencyType] = useState<'card' | 'bank' | 'urz' | 'token'>('card');
   const [fiatCurrency, setFiatCurrency] = useState('GBP');
   const [tokenSymbol, setTokenSymbol] = useState('ETH');
+  // Card expiry state
+  const [cardExpiry, setCardExpiry] = useState('');
+
+  // Handler for MM/YY input with auto-slash
+  const handleCardExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    // Remove all non-digits except the slash
+    value = value.replace(/[^\d/]/g, '');
+    // If user types two digits and no slash, insert slash
+    if (/^\d{2}$/.test(value)) {
+      value = value + '/';
+    }
+    // If user deletes back to two digits and slash is present, remove slash
+    if (/^\d{2}\/$/.test(value) && cardExpiry.length > value.length) {
+      value = value.slice(0, 2);
+    }
+    // Only allow format MM or MM/ or MM/YY
+    if (!/^\d{0,2}(\/\d{0,2})?$/.test(value)) {
+      return;
+    }
+    setCardExpiry(value);
+  };
 
   const bankOptions = [
     { code: 'GBP', name: 'British Pound' },
@@ -109,8 +131,15 @@ const DepositForm: React.FC<DepositFormProps> = ({
     setTenancyEnd(fromBritishDate(e.target.value));
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Add payment logic here or call a prop function if needed
+    // For now, just show an alert for demo
+    alert('Payment submitted!');
+  };
+
   return (
-    <form>
+    <form onSubmit={handleSubmit}>
       <h2>Deposit Form</h2>
       <div>
         <label>Deposit Amount</label>
@@ -163,7 +192,17 @@ const DepositForm: React.FC<DepositFormProps> = ({
           <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
             <input type="text" placeholder="Card Number" maxLength={19} style={{padding: 8, borderRadius: 4, border: '1px solid #ccc'}} />
             <div style={{display: 'flex', gap: 8}}>
-              <input type="text" placeholder="MM/YY" maxLength={5} style={{padding: 8, borderRadius: 4, border: '1px solid #ccc', width: 80}} />
+              <input
+                type="text"
+                placeholder="MM/YY"
+                maxLength={5}
+                style={{padding: 8, borderRadius: 4, border: '1px solid #ccc', width: 80}}
+                value={cardExpiry}
+                onChange={handleCardExpiryChange}
+                inputMode="numeric"
+                pattern="\d{2}/\d{2}"
+                autoComplete="cc-exp"
+              />
               <input type="text" placeholder="CVC" maxLength={4} style={{padding: 8, borderRadius: 4, border: '1px solid #ccc', width: 60}} />
             </div>
             <input type="text" placeholder="Name on Card" style={{padding: 8, borderRadius: 4, border: '1px solid #ccc'}} />
@@ -193,6 +232,12 @@ const DepositForm: React.FC<DepositFormProps> = ({
           (DD/MM/YYYY): {toBritishDate(tenancyEnd)}
         </span>
       </div>
+      <button
+        type="submit"
+        className="px-4 py-2 bg-indigo-600 text-white rounded mt-4 w-full"
+      >
+        Pay Deposit
+      </button>
     </form>
   );
 };

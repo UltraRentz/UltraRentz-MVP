@@ -37,6 +37,9 @@ interface RentDepositState {
 }
 
 const RentDepositOrchestrator: React.FC = () => {
+    // Independent input state for signatory forms
+    const [renterSignatoryInput, setRenterSignatoryInput] = useState("");
+    const [landlordSignatoryInput, setLandlordSignatoryInput] = useState("");
   // --- Test Mode Banner ---
   const TestModeBanner = () => (
     <div className="bg-yellow-200 text-yellow-900 font-semibold text-center py-2 px-4 rounded mb-4 border border-yellow-400 shadow">
@@ -311,8 +314,8 @@ const RentDepositOrchestrator: React.FC = () => {
         type="Renter"
         signatories={state.renterSignatories}
         setSignatories={setRenterSignatories}
-        input={""}
-        setInput={() => {}}
+        input={renterSignatoryInput}
+        setInput={setRenterSignatoryInput}
       />
 
       <div style={{ margin: "30px 0", borderBottom: "1px solid #eee" }}></div>
@@ -321,8 +324,8 @@ const RentDepositOrchestrator: React.FC = () => {
         type="Landlord"
         signatories={state.landlordSignatories}
         setSignatories={setLandlordSignatories}
-        input={""}
-        setInput={() => {}}
+        input={landlordSignatoryInput}
+        setInput={setLandlordSignatoryInput}
       />
 
       {state.paymentStatus && !state.paymentTxHash && (

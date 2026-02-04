@@ -78,12 +78,6 @@ contract Escrow is Ownable, ReentrancyGuard {
         uint256 depositId,
         DestinationType destinationType,
         address destination,
-    interface IAavePool {
-        function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
-        function withdraw(address asset, uint256 amount, address to) external returns (uint256);
-    }
-
-    contract Escrow is Ownable, ReentrancyGuard {
         string calldata bankDetails,
         uint256 amount
     ) external nonReentrant {

@@ -94,11 +94,10 @@ const HeroSection: React.FC = () => {
               </span>
             </h2>
             <p
-              className="text-base sm:text-lg mb-8 sm:mb-12 leading-relaxed max-w-4xl mx-auto px-4"
-              style={{ color: "var(--text-color)", opacity: 0.7 }}
+              className="text-base sm:text-lg mb-8 sm:mb-12 leading-relaxed max-w-3xl mx-auto px-4 fade-in-text"
+              style={{ color: "var(--text-color)", opacity: 0.8 }}
             >
-              Secure, transparent, and fair deposit management for renters and landlords.<br/>
-              Enjoy independent dispute resolution, interest rewards, non-fiat payment options, and deposit passporting—all with the simplicity of a modern finance app.
+              Manage rent deposits simply and securely. Get help with disputes, earn interest, and pay or receive deposits your way.
             </p>
 
             {/* CTA Buttons - Clearer Labels with Tooltips */}
@@ -127,7 +126,7 @@ const HeroSection: React.FC = () => {
               <div title="Pay or receive deposits by bank, card, or your preferred method. No crypto or technical setup needed.">
                 <div className="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">Flexible Payment Options</div>
                 <div className="text-xs sm:text-sm" style={{ color: "var(--text-color)", opacity: 0.7 }}>
-                  Pay or receive deposits by bank, card, or your preferred method—no crypto knowledge needed.
+                  Pay or receive deposits by bank transfer, card, or your preferred method—simple and secure.
                 </div>
               </div>
               <div title="Your deposit is sent back to you automatically at the end of the tenancy. No paperwork or chasing required.">

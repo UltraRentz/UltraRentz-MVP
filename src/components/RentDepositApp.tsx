@@ -48,6 +48,9 @@ interface RentDepositState {
 }
 
 const RentDepositApp: React.FC = () => {
+    // Independent input state for signatory forms
+    const [renterSignatoryInput, setRenterSignatoryInput] = useState("");
+    const [landlordSignatoryInput, setLandlordSignatoryInput] = useState("");
   const initialStartDate = getTodayDate();
   const initialDurationMonths = "9";
   const initialEndDate = calculateTenancyEndDate(
@@ -205,16 +208,16 @@ const RentDepositApp: React.FC = () => {
             signatories={state.renterSignatories}
             setSignatories={setRenterSignatories}
             otherGroupSignatories={state.landlordSignatories}
-            input={""}
-            setInput={() => {}}
+            input={renterSignatoryInput}
+            setInput={setRenterSignatoryInput}
           />
           <SignatoryForm
             type="Landlord"
             signatories={state.landlordSignatories}
             setSignatories={setLandlordSignatories}
             otherGroupSignatories={state.renterSignatories}
-            input={""}
-            setInput={() => {}}
+            input={landlordSignatoryInput}
+            setInput={setLandlordSignatoryInput}
           />
         </div>
         <button

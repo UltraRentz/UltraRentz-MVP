@@ -1,3 +1,19 @@
+// Minimal ERC20 token for testing
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+
+contract TestERC20 is ERC20 {
+    constructor(string memory name, string memory symbol, uint8 decimals_) ERC20(name, symbol) {
+        _mint(msg.sender, 1_000_000 ether);
+    }
+
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
+    }
+
+    function burn(address from, uint256 amount) public {
+        _burn(from, amount);
+    }
+}
 
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -39,16 +55,59 @@ contract Malicious {
 // ...existing code...
 
 
+
 contract EscrowTest is Test {
+    address public tenant = makeAddr("tenant");
+    address public landlord = makeAddr("landlord");
+    address public daoAdmin = makeAddr("daoAdmin");
     UltraRentzEscrow public escrow;
-    address public daoAdmin = address(0x1234); // Replace with actual DAO admin address as needed
-    address public tenant = address(0x1111);
-    address public landlord = address(0x2222);
-    address[] public signatories;
-    uint256 public DURATION = 30 days;
+    uint256 public constant DURATION = 30 days;
 
     receive() external payable {}
 
+        // =============================
+        // COVERAGE: EscrowTest receive() function
+        // =============================
+        function testEscrowTestReceive() public {
+            // Send Ether to EscrowTest contract
+            (bool sent, ) = address(this).call{value: 1 wei}("");
+            require(sent, "Send failed");
+        }
+
+        // =============================
+        // COVERAGE: Malicious fallback() function
+        // =============================
+        function testMaliciousFallback() public {
+            // Deploy Malicious contract and send Ether to trigger fallback
+            Malicious mal = new Malicious(escrow, 1);
+            (bool sent, ) = address(mal).call{value: 1 wei}("");
+            require(sent, "Send failed");
+            // Should not revert
+        }
+
+        // =============================
+        // COVERAGE: Helper functions edge cases
+        // =============================
+        function testWarpHelpersEdgeCases() public {
+            // _warpToAllowResolution with time before block.timestamp
+            uint256 nowTime = block.timestamp;
+            _warpToAllowResolution(nowTime - 100);
+            // _warpPastResolutionWindow with time before block.timestamp
+            _warpPastResolutionWindow(nowTime - 100);
+            // _warpToAllowResolution with time after block.timestamp
+            _warpToAllowResolution(nowTime + 100);
+            // _warpPastResolutionWindow with time after block.timestamp
+            _warpPastResolutionWindow(nowTime + 100);
+        }
+
+        function testGetBalanceEdgeCases() public {
+            // Zero balance
+            address zeroAddr = makeAddr("zeroAddr");
+            assertEq(_getBalance(zeroAddr), 0);
+            // Nonzero balance
+            urzToken.mint(tenant, 123);
+            assertEq(_getBalance(tenant), urzToken.balanceOf(tenant));
+        }
     // =============================
     // COVERAGE BOOST TESTS
     // =============================
@@ -57,6 +116,32 @@ contract EscrowTest is Test {
         address(escrow).call{value: 1 ether}("");
     }
     // ...existing code...
+
+    // =============================
+    // COVERAGE: FINALIZE ESCROW ERROR PATHS
+    // =============================
+    function testCannotFinalizeEscrowWithoutDecision() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Try to finalizeEscrow before any DAO decision
+        vm.prank(daoAdmin);
+        vm.expectRevert(bytes("Escrow not ready for finalization (no decision made)"));
+        escrow.finalizeEscrow(escrowId);
+    }
+
+    function testCannotFinalizeEscrowWhileAppealWindowActive() public {
+        uint256 escrowId = _createEscrowAndFund(tenant, landlord);
+        // Raise dispute and resolve (moves to DecisionToRelease)
+        vm.prank(tenant);
+        escrow.raiseDispute(escrowId);
+        uint256 disputeTime = block.timestamp;
+        _warpToAllowResolution(disputeTime);
+        vm.prank(daoAdmin);
+        escrow.resolveDispute(escrowId, true);
+        // Try to finalizeEscrow before appeal window expires and before max appeals
+        vm.prank(daoAdmin);
+        vm.expectRevert(bytes("Appeal window is still active"));
+        escrow.finalizeEscrow(escrowId);
+    }
 
 
     function testWithdrawEtherWithBalance() public {
@@ -313,20 +398,11 @@ contract EscrowTest is Test {
             // 7. Tenant should be refunded
             assertEq(_getBalance(tenant), initialTenantBalance + RENT_AMOUNT, "Tenant should be refunded after successful appeal");
         }
-    UltraRentzEscrow public escrow;
     TestERC20 public urzToken;
-    
-    // Accounts
-    address public daoAdmin = makeAddr("daoAdmin");
-    address public tenant = makeAddr("tenant");
-    address public landlord = makeAddr("landlord");
     address public maliciousActor = makeAddr("malicious");
     address[6] public signatories;
     uint256 public constant RENT_AMOUNT = 100 ether;
-
-    // Time constants
     uint256 public constant START_TIME = 1000;
-    uint256 public constant DURATION = 30 days;
     uint256 public constant RESOLUTION_WINDOW = 7 days;
 
     function setUp() public {

@@ -74,6 +74,26 @@ UltraRentz is a decentralized dApp built with **ethers.js**, **Moonbeam**, **Sol
 ---
 
 
+
+## 🚀 New Features (2026 MVP)
+
+- 🏛️ **Live DAO Voting:** Community members vote on dispute outcomes in real time, with progress bars and transparent results.
+- 🕒 **Dispute Timeline & Audit Trail:** Visual timeline modal shows every event, action, and on-chain transaction for each dispute, with downloadable audit logs.
+- 🖼️ **Evidence Upload & Gallery:** Parties can upload, view, and manage evidence files (images, PDFs, docs) for each dispute, with secure storage and gallery view.
+- 💬 **In-Page Chat & Mediation:** Real-time chat for renters, landlords, and DAO mediators to discuss disputes, share updates, and resolve issues collaboratively.
+- 🤖 **AI-Powered Dispute Insights:** Automated summary, outcome prediction, and suggestions for each dispute, powered by AI models.
+- 🔔 **Automated Notifications:** Instant in-app and SMS/email alerts for dispute status changes, votes, and resolution events.
+- 🏠 **Property-Based Workflow:** Disputes are linked to specific properties and deposits, with easy selection and tracking.
+- ⏳ **Estimated Resolution Time:** UI displays expected time to resolution based on DAO voting and historical data.
+- ⭐ **Feedback & Reputation:** Parties can leave feedback after dispute resolution, building a transparent reputation system.
+- 🏅 **Gamified Badges (Planned):** Earn badges for positive dispute outcomes, participation, and community engagement.
+- 📤 **Export/Share (Planned):** Download or share dispute records, evidence, and audit trails for compliance and transparency.
+- 🧮 **Resolution Calculator (Planned):** Estimate potential outcomes and resolved amounts before submitting a dispute.
+- ♿ **Accessibility Tools (Planned):** Enhanced accessibility features for all users.
+
+All features are integrated into the Disputes page and related modals/components for a seamless, user-friendly experience.
+
+---
 ## 🛡️ Error Logging & Smart Contract Monitoring
 
 ### Sentry (Frontend Error Logging)

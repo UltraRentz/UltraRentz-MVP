@@ -67,6 +67,156 @@ contract EscrowStateMachineTest is Test {
         assertEq(tok, address(urzToken));
     }
 
+    function testSetTestBypassOnlyOwner_NotOwner() public {
+        vm.prank(address(0xDEAD));
+        vm.expectRevert();
+        escrow.setTestBypassOnlyOwner(true);
+    }
+
+    function testFundEscrow_NotCreatedState() public {
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
+        vm.prank(tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        vm.prank(tenant);
+        escrow.fundEscrow(escrowId);
+        // Try funding again (should fail)
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.fundEscrow(escrowId);
+    }
+
+    function testFundEscrow_WrongToken() public {
+        address fakeToken = address(0xBEEF);
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, fakeToken);
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.fundEscrow(escrowId);
+    }
+
+    function testRaiseDispute_NotFunded() public {
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.raiseDispute(escrowId);
+    }
+
+    function testReferDisputeToDAO_NotInDispute() public {
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
+        vm.prank(tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        vm.prank(tenant);
+        escrow.fundEscrow(escrowId);
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.referDisputeToDAO(escrowId);
+    }
+
+    function testReferDisputeToDAO_AlreadyReferred() public {
+        // Use a MockDAO for correct revert reason
+        MockDAO dao = new MockDAO();
+        UltraRentzStable freshToken = new UltraRentzStable(address(this));
+        EscrowStateMachine esc = new EscrowStateMachine(address(this), payable(address(dao)), payable(address(freshToken)));
+        // Mint tokens to tenant as owner
+        freshToken.mint(tenant, RENT_AMOUNT * 10);
+        // Transfer ownership to EscrowStateMachine as owner
+        freshToken.transferOwnership(address(esc));
+        address t = tenant;
+        address l = landlord;
+        // All tenant actions as tenant
+        vm.startPrank(t);
+        uint256 escrowId = esc.createEscrow(l, RENT_AMOUNT, address(freshToken));
+        freshToken.approve(address(esc), RENT_AMOUNT);
+        esc.fundEscrow(escrowId);
+        esc.raiseDispute(escrowId);
+        esc.referDisputeToDAO(escrowId);
+        vm.expectRevert(bytes("Already referred"));
+        esc.referDisputeToDAO(escrowId);
+        vm.stopPrank();
+    }
+
+    function testResolveByDAO_NotOwner() public {
+        // Setup as in DAO test
+        UltraRentzStable stable = new UltraRentzStable(address(this));
+        MockDAO dao = new MockDAO();
+        EscrowStateMachine esc = new EscrowStateMachine(address(0xABCD), payable(address(dao)), payable(address(stable)));
+        stable.transferOwnership(address(esc));
+        address t = address(0xBEEF);
+        address l = address(0xCAFE);
+        vm.prank(address(esc));
+        stable.mint(t, 1000 ether);
+        vm.startPrank(t);
+        stable.approve(address(esc), 1000 ether);
+        uint256 id = esc.createEscrow(l, 100 ether, address(stable));
+        esc.fundEscrow(id);
+        esc.raiseDispute(id);
+        esc.referDisputeToDAO(id);
+        vm.stopPrank();
+        dao.setDecision(id, MockDAO.Decision.FullRelease, 100 ether);
+        vm.prank(address(0xBAD));
+        vm.expectRevert();
+        esc.resolveByDAO(id);
+    }
+
+    function testAppealToDAO_NotReferred() public {
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
+        vm.prank(tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        vm.prank(tenant);
+        escrow.fundEscrow(escrowId);
+        vm.prank(tenant);
+        escrow.raiseDispute(escrowId);
+        vm.prank(tenant);
+        vm.expectRevert();
+        escrow.appealToDAO(escrowId);
+    }
+
+    function testReleaseEscrow_NotOwner() public {
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
+        vm.prank(tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        vm.prank(tenant);
+        escrow.fundEscrow(escrowId);
+        vm.prank(address(0xBAD));
+        vm.expectRevert();
+        escrow.releaseEscrow(escrowId);
+    }
+
+    function testRefundEscrow_NotOwner() public {
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
+        vm.prank(tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        vm.prank(tenant);
+        escrow.fundEscrow(escrowId);
+        vm.prank(address(0xBAD));
+        vm.expectRevert();
+        escrow.refundEscrow(escrowId);
+    }
+
+
+    function testOnlyLandlordModifier_RevertAndSuccess() public {
+        vm.prank(tenant);
+        uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
+        vm.prank(tenant);
+        urzToken.approve(address(escrow), RENT_AMOUNT);
+        vm.prank(tenant);
+        escrow.fundEscrow(escrowId);
+        // Try to call onlyLandlordTest as non-landlord
+        vm.prank(address(0xDEAD));
+        vm.expectRevert(bytes("Not landlord"));
+        escrow.onlyLandlordTest(escrowId);
+
+        // Success path: landlord calls
+        vm.prank(landlord);
+        escrow.onlyLandlordTest(escrowId);
+    }
+
     function testFundEscrow() public {
         vm.prank(tenant);
         uint256 escrowId = escrow.createEscrow(landlord, RENT_AMOUNT, address(urzToken));
