@@ -176,7 +176,7 @@ const YieldPage: React.FC = () => {
       // Check if MetaMask is available first
       if (!authService.isMetaMaskAvailable()) {
         alert(
-          "MetaMask is not installed. Please install MetaMask extension to connect your wallet."
+          "MetaMask is not installed. Please install MetaMask extension to access your digital account."
         );
         return;
       }
@@ -211,7 +211,7 @@ const YieldPage: React.FC = () => {
 
   const handleYieldFormSubmit = async (formData: any) => {
     if (!authState.isAuthenticated || !authState.user?.walletAddress) {
-      alert("Please connect your wallet first.");
+      alert("Please access your digital account first.");
       return;
     }
 
@@ -525,7 +525,7 @@ const YieldPage: React.FC = () => {
               <div className="flex items-center justify-center h-80 text-gray-500">
                 {authState.isAuthenticated
                   ? "No chart data available yet"
-                  : "Connect your wallet to view yield chart"}
+                  : "Access your digital account to view yield chart"}
               </div>
             )}
           </div>
@@ -536,7 +536,7 @@ const YieldPage: React.FC = () => {
           {!authState.isAuthenticated ? (
             <div className="text-center py-8">
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Connect your wallet to view and claim yield rewards
+                Access your digital account to view and claim yield rewards
               </p>
               <button
                 onClick={handleConnectWallet}
@@ -549,7 +549,7 @@ const YieldPage: React.FC = () => {
                     Connecting...
                   </div>
                 ) : (
-                  "Connect Wallet"
+                  "Access my DIGITAL ACCOUNT"
                 )}
               </button>
             </div>
@@ -670,12 +670,12 @@ const YieldPage: React.FC = () => {
                           <p className="text-lg font-medium mb-2">
                             {authState.isAuthenticated
                               ? "No yield history yet"
-                              : "Connect your wallet to view yield history"}
+                              : "Access your digital account to view yield history"}
                           </p>
                           <p className="text-sm">
                             {authState.isAuthenticated
                               ? "Start earning yield rewards on your deposit!"
-                              : "Connect your wallet to start earning yield rewards"}
+                              : "Access your digital account to start earning yield rewards"}
                           </p>
                         </div>
                       </td>

@@ -134,7 +134,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
                   : "bg-gray-400 text-white cursor-not-allowed"
               }`}
             >
-              {isConnecting ? "Connecting..." : "Connect Wallet"}
+              {isConnecting ? "Connecting..." : "Access my DIGITAL ACCOUNT"}
             </button>
           )}
         </div>

@@ -222,7 +222,7 @@ const DashboardPage: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 text-center py-8">
                   {authState.isAuthenticated
                     ? "No deposits yet. Create your first deposit to get started!"
-                    : "Connect your wallet to view your deposits."}
+                    : "Access your digital account to view your deposits."}
                 </p>
               )}
             </div>
@@ -282,7 +282,7 @@ const DashboardPage: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 text-center py-8">
                   {authState.isAuthenticated
                     ? "No yield data available yet."
-                    : "Connect your wallet to view your yield summary."}
+                    : "Access your digital account to view your yield summary."}
                 </p>
               )}
             </div>

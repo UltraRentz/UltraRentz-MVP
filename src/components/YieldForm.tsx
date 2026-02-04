@@ -97,7 +97,7 @@ const YieldForm: React.FC<YieldFormProps> = ({
             <span className="text-2xl">🔒</span>
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Wallet Not Connected
+            Digital Account Not Connected
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Please use the <b>Connect Account</b> button in the top right to get started and grow your deposit.

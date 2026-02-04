@@ -142,7 +142,7 @@ const Yield: React.FC = () => {
         {account ? (
           <div className="text-green-700 font-mono mb-2">Connected: {account.slice(0, 6)}...{account.slice(-4)}</div>
         ) : (
-          <button onClick={connectWallet} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Connect Wallet</button>
+          <button onClick={connectWallet} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Access my DIGITAL ACCOUNT</button>
         )}
       </div>
 
