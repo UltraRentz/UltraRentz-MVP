@@ -38,3 +38,9 @@ coverage/
 
 cache/
 
+
+# Foundry
+out/
+cache_forge/
+broadcast/
+lib/aave-v3-core/

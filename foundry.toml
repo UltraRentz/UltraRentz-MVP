@@ -14,7 +14,8 @@ auto_detect_remappings = false
 remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
-    "@src/contracts/=src/contracts/"
+    "@src/contracts/=src/contracts/",
+    "forge-std/=lib/forge-std/src/"
 ]
 
 [fuzz]
@@ -24,6 +25,7 @@ max_test_rejects = 150000
 [rpc_endpoints]
 arbitrum-sepolia = "${ARBITRUM_RPC}"
 robinhood-chain = "https://rpc.mainnet.chain.robinhood.com"
+arc-testnet = "https://rpc.testnet.arc.network"
 
 [etherscan]
 arbitrum_sepolia = { key = "${ARBITRUM_API_KEY}" }
