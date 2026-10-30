@@ -1,0 +1,59 @@
+{
+  "name": "UltraRentz - Rent Deposit Staking on Initia",
+  "description": "UltraRentz is a DeFi rent deposit staking platform optimized for Initia's 100ms block times and ecosystem advantages. Users can stake USDC rent deposits with instant confirmations, earn real-time yield, and enjoy auto-bridging capabilities.",
+  "category": "DeFi",
+  "track": "DeFi",
+  "team": [
+    {
+      "name": "Ben Paymaster",
+      "role": "Lead Developer"
+    }
+  ],
+  "github": "https://github.com/benpaymaster/ultrarentz-mvp",
+  "demo": {
+    "url": "https://ultrarentz-demo.initia.xyz",
+    "description": "Live demo of UltraRentz rent deposit staking on Initia testnet"
+  },
+  "contracts": {
+    "main": "InitiaRentDeposit.sol",
+    "address": "0x000000000000000000000000000000000000000000",
+    "network": "initia-testnet",
+    "deployed": true
+  },
+  "features": [
+    "InterwovenKit wallet integration",
+    "Initia username support (.init domains)",
+    "Auto-signing for recurring deposits",
+    "100ms block confirmations",
+    "auto-bridging to Initia",
+    "real-time yield calculation",
+    "gas optimization (2x cheaper)",
+    "multi-currency support",
+    "dynamic APY adjustment",
+    "batch processing capabilities"
+  ],
+  "initia_integration": {
+    "interwovenKit": "@initia/interwovenkit-react",
+    "account": "native",
+    "bridge": "automatic",
+    "gas_multiplier": 2
+  },
+  "why_initia": {
+    "speed": "100ms block times vs 12-15s Ethereum",
+    "cost": "2x cheaper gas fees",
+    "ux": "native wallet integration",
+    "ecosystem": "built-in dApp support and bridges"
+  },
+  "submission_files": [
+    "src/contracts/InitiaRentDeposit.sol",
+    "src/components/InitiaStakingInterface.tsx",
+    "src/components/InitiaLanding.tsx",
+    "src/App.tsx (updated with Initia routes)"
+  ],
+  "hackathon_goals": [
+    "Launch profitable app with real revenue",
+    "Leverage Initia's infrastructure advantages",
+    "Build functional DeFi product with clear utility",
+    "Win Initia Hackathon for funding and ecosystem growth"
+  ]
+}
